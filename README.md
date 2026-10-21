@@ -107,4 +107,4 @@ node tools/make-icons.js                      # перерисовать ико�
 
 ## Лицензия
 
-MIT
+Apache 2.0 — см. [LICENSE](LICENSE)

@@ -5,7 +5,7 @@
   "description": "Full focus mode for Windows: timer, levels, notification mute, site/app blocking, Brave cleanup, planner",
   "main": "main.js",
   "private": true,
-  "license": "MIT",
+  "license": "Apache-2.0",
   "scripts": {
     "start": "electron .",
     "dry": "electron . --dry"
