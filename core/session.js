@@ -22,7 +22,7 @@ class Session extends EventEmitter {
     this.s = {
       id: 's' + now.toString(36),
       status: 'running',
-      mode, level: opts.level, goal: opts.goal || '', taskId: opts.taskId || null,
+      mode, level: opts.level, goal: opts.goal || '', taskId: opts.taskId || null, presetId: opts.presetId || null,
       durations: { focus: focusMin, short: opts.short, long: opts.long },
       rounds: mode === 'pomodoro' ? opts.rounds : 1,
       longEvery: opts.longEvery || 4,

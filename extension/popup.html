@@ -3,19 +3,21 @@
 <head>
   <meta charset="utf-8">
   <style>
+    @font-face { font-family: "Inter"; font-weight: 100 900; src: url(fonts/inter-cyrillic-wght-normal.woff2) format("woff2-variations"); unicode-range: U+0400-045F, U+0490-0491, U+2116; }
+    @font-face { font-family: "Inter"; font-weight: 100 900; src: url(fonts/inter-latin-wght-normal.woff2) format("woff2-variations"); unicode-range: U+0000-00FF, U+2000-206F; }
     :root { color-scheme: dark; }
-    body { margin: 0; width: 280px; background: #0a0c11; color: #e9ebf2; font: 13px/1.45 "Segoe UI", system-ui, sans-serif; }
+    body { margin: 0; width: 280px; background: #050505; color: #f2f3f5; font: 13px/1.45 "Inter", "Segoe UI", system-ui, sans-serif; }
     .p { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
     .h { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 15px; }
-    .r { width: 14px; height: 14px; border-radius: 50%; border: 3px solid #6d7cff; box-shadow: 0 0 10px rgba(109, 124, 255, .55); }
-    .row { display: flex; justify-content: space-between; color: #8b91a3; }
-    .row b { color: #e9ebf2; font-weight: 500; }
-    .big { font: 200 40px "Segoe UI Variable Display", "Segoe UI", sans-serif; text-align: center; font-variant-numeric: tabular-nums; padding: 6px 0 0; }
-    .ph { text-align: center; color: #6d7cff; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; font-weight: 600; }
-    .goal { text-align: center; color: #c9cdd8; }
-    .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; background: #ff5d6c; }
-    .dot.ok { background: #3ecf8e; }
-    .muted { color: #5c6273; font-size: 12px; text-align: center; }
+    .r { width: 14px; height: 14px; border-radius: 50%; border: 2.5px solid #e8ecff; box-shadow: 0 0 10px rgba(180, 195, 255, .4); }
+    .row { display: flex; justify-content: space-between; color: #8d9099; }
+    .row b { color: #f2f3f5; font-weight: 500; }
+    .big { font: 200 40px "Inter", "Segoe UI", sans-serif; text-align: center; font-variant-numeric: tabular-nums; padding: 6px 0 0; }
+    .ph { text-align: center; color: #e8ecff; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; font-weight: 600; }
+    .goal { text-align: center; color: #c9ccd4; }
+    .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; background: #e5676b; }
+    .dot.ok { background: #6fcf9f; }
+    .muted { color: #55585f; font-size: 12px; text-align: center; }
   </style>
 </head>
 <body>

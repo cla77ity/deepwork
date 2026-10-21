@@ -6,19 +6,19 @@
   let tip;
   function hover(el, text) {
     el.addEventListener('mouseenter', () => {
-      if (!tip) { tip = h('div.toast', { style: { position: 'fixed', pointerEvents: 'none', zIndex: 70, padding: '6px 10px', fontSize: '12.5px' } }); document.body.append(tip); }
+      if (!tip) { tip = h('div.tip'); document.body.append(tip); }
       tip.textContent = text;
-      tip.style.display = '';
+      tip.classList.add('show');
     });
     el.addEventListener('mousemove', e => { tip.style.left = e.clientX + 12 + 'px'; tip.style.top = e.clientY - 34 + 'px'; });
-    el.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+    el.addEventListener('mouseleave', () => tip.classList.remove('show'));
   }
 
   function render(root) {
     const st = DW.state;
     const by = DW.focusByDay();
     const today = DW.today();
-    const goal = st.settings.dailyGoalMin;
+    const goal = DW.goalFor(today);
     const sum = days => { let m = 0; for (let i = 0; i < days; i++) m += by[DW.addDays(today, -i)] || 0; return m; };
     const total = st.sessions.reduce((a, s) => a + s.focusMs, 0) / 60000;
     const done = st.sessions.filter(s => s.result === 'done').length;
@@ -30,24 +30,28 @@
     let best = 0, cur = 0;
     const daysSorted = Object.keys(by).sort();
     if (daysSorted.length) {
-      for (let d = daysSorted[0]; d <= today; d = DW.addDays(d, 1)) { cur = (by[d] || 0) >= goal ? cur + 1 : 0; best = Math.max(best, cur); }
+      // same rule as the live streak: days off don't break it
+      for (let d = daysSorted[0]; d <= today; d = DW.addDays(d, 1)) {
+        if (DW.metGoal(by, d)) cur++; else if (DW.goalFor(d) > 0 && d !== today) cur = 0;
+        best = Math.max(best, cur);
+      }
     }
     const streak = DW.streak();
 
     const kpi = (k, v, s) => h('div.kpi', h('div.k', k), h('div.v', v), h('div.s', s));
-    root.append(h('div.view-head', h('h1', 'Статистика'), h('span.sub', 'сколько глубокой работы ты сделал')),
-      h('div.kpis',
-        kpi('Сегодня', DW.dur(by[today] || 0), `норма ${DW.dur(goal)}`),
+    root.append(h('div.view-head', h('h1', 'Статистика')),
+      h('div.kpis.stagger',
+        kpi('Сегодня', DW.dur(by[today] || 0), goal ? `норма — ${DW.dur(goal)}` : 'выходной'),
         kpi('7 дней', DW.dur(sum(7)), `в среднем ${DW.dur(sum(7) / 7)} в день`),
-        kpi('Всего', DW.dur(total), `${st.sessions.length} ${DW.plural(st.sessions.length, 'сессия', 'сессии', 'сессий')}`),
-        kpi('Серия', `${streak} ${DW.plural(streak, 'день', 'дня', 'дней')}`, `лучшая: ${best}`),
+        kpi('Всего', DW.dur(total), DW.count(st.sessions.length, 'сессия', 'сессии', 'сессий')),
+        kpi('Серия', DW.count(streak, 'день', 'дня', 'дней'), `рекорд — ${DW.count(best, 'день', 'дня', 'дней')}`),
         kpi('Доведено до конца', st.sessions.length ? Math.round(done / st.sessions.length * 100) + '%' : '—', `${done} из ${st.sessions.length}`),
-        kpi('Отвлечений за неделю', String(distractWeek), 'попыток открыть блок')));
+        kpi('Отвлечений за 7 дней', String(distractWeek), 'попыток открыть заблокированное')));
 
-    root.append(h('div.stats-grid', heatmap(by, goal), bars(by, goal), distractions(), recent()));
+    root.append(h('div.stats-grid.stagger', heatmap(by), bars(by, st.settings.dailyGoalMin), distractions(), recent()));
   }
 
-  function heatmap(by, goal) {
+  function heatmap(by) {
     const today = DW.today();
     const weeks = 26;
     const dow = (DW.parse(today).getDay() + 6) % 7;
@@ -59,15 +63,17 @@
       const cell = h('i');
       if (d > today) cell.style.visibility = 'hidden';
       else if (m > 0) {
-        // 4 sequential steps of the accent: <25%, <60%, <100%, >= goal
-        const r = m / goal;
-        cell.style.background = `rgba(109,124,255,${r >= 1 ? 1 : r >= 0.6 ? 0.7 : r >= 0.25 ? 0.45 : 0.22})`;
+        // 4 sequential steps of the accent: <25%, <60%, <100%, >= that day's norm
+        const g = DW.goalFor(d);
+        const r = g ? m / g : 1;
+        cell.style.background = `rgba(232,236,255,${r >= 1 ? 0.95 : r >= 0.6 ? 0.6 : r >= 0.25 ? 0.34 : 0.16})`;
+        if (r >= 1) cell.style.boxShadow = '0 0 6px rgba(180,195,255,.35)';
       }
       hover(cell, `${DW.parse(d).getDate()} ${DW.MONTHS_GEN[DW.parse(d).getMonth()]}: ${m ? DW.dur(m) : 'нет фокуса'}`);
       grid.append(cell);
     }
     const legend = h('div.row.muted', { style: { fontSize: '11.5px', gap: '5px', marginTop: '10px' } }, 'меньше',
-      [0.04, 0.22, 0.45, 0.7, 1].map((a, i) => h('i', { style: { width: '11px', height: '11px', borderRadius: '3px', background: i ? `rgba(109,124,255,${a})` : 'rgba(255,255,255,.04)' } })), 'норма');
+      [0.04, 0.16, 0.34, 0.6, 0.95].map((a, i) => h('i', { style: { width: '11px', height: '11px', borderRadius: '3px', background: i ? `rgba(232,236,255,${a})` : 'rgba(255,255,255,.04)' } })), 'норма');
     return h('div.card', h('h3', 'Полгода фокуса'), h('div', { style: { overflowX: 'auto' } }, grid), legend);
   }
 
@@ -79,9 +85,10 @@
     const wrap = h('div.bars');
     days.forEach((d, i) => {
       const v = vals[i];
-      const bar = h('i' + (v < goal ? '.under' : ''), { style: { height: (v / max * 100) + '%' } });
+      const bar = h('i' + (DW.metGoal(by, d) ? '' : '.under'), { style: { height: (v / max * 100) + '%' } });
       const col = h('div.b', bar, h('span', DW.DOW[(DW.parse(d).getDay() + 6) % 7]));
-      hover(col, `${DW.longDate(d)}: ${v ? DW.dur(v) : 'нет фокуса'}`);
+      const g = DW.goalFor(d);
+      hover(col, `${DW.longDate(d)}: ${v ? DW.dur(v) : 'нет фокуса'}${g ? ' из ' + DW.dur(g) : ' · выходной'}`);
       wrap.append(col);
     });
     // the bar area is 100% minus the day labels row (~17px)
@@ -100,9 +107,9 @@
     const top = Object.entries(agg).sort((a, b) => b[1] - a[1]).slice(0, 8);
     const max = top.length ? top[0][1] : 1;
     return h('div.card', h('h3', 'Что тянет отвлечься · 30 дней'),
-      top.length ? top.map(([k, n]) => h('div.dist', h('span', { style: { width: '170px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, k),
+      top.length ? top.map(([k, n], i) => h('div.dist', { style: { '--i': i } }, h('span', { style: { width: '170px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, k),
         h('div.bar', h('i', { style: { width: n / max * 100 + '%' } })), h('span.num.muted', { style: { width: '34px', textAlign: 'right' } }, String(n))))
-        : h('div.empty', 'Пока ни одной попытки. Так держать.'));
+        : h('div.empty', 'За 30 дней ни одной попытки'));
   }
 
   function recent() {
@@ -115,8 +122,8 @@
           h('td.num', DW.dur(s.focusMs / 60000)),
           h('td', lvlName(s.level)),
           h('td', { style: { maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, s.goal || h('span.dim', '—')),
-          h('td.res-' + s.result, s.result === 'done' ? '✓ готово' : '× прервана'))))
-        : h('div.empty', 'Здесь появятся твои сессии'));
+          h('td.res-' + s.result, s.result === 'done' ? 'завершена' : 'прервана'))))
+        : h('div.empty', 'Здесь появятся завершённые сессии'));
   }
 
   DW.views.stats = { render, title: 'Статистика' };

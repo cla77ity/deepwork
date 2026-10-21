@@ -21,12 +21,12 @@
     shade.id = 'deepwork-feed';
     shade.attachShadow({ mode: 'open' }).innerHTML = `
       <style>
-        :host { all: initial; position: fixed; inset: 0; z-index: 2147483647; background: #0a0c11; display: grid; place-items: center; font-family: "Segoe UI", system-ui, sans-serif; color: #e9ebf2; }
+        :host { all: initial; position: fixed; inset: 0; z-index: 2147483647; background: #050505; display: grid; place-items: center; font-family: "Segoe UI", system-ui, sans-serif; color: #f2f3f5; }
         .b { text-align: center; max-width: 460px; padding: 24px; }
-        .r { width: 46px; height: 46px; border-radius: 50%; border: 6px solid #6d7cff; box-shadow: 0 0 28px rgba(109,124,255,.6); margin: 0 auto 22px; }
+        .r { width: 46px; height: 46px; border-radius: 50%; border: 5px solid #e8ecff; box-shadow: 0 0 26px rgba(180,195,255,.45); margin: 0 auto 22px; }
         h1 { font: 600 24px "Segoe UI", sans-serif; margin: 0 0 8px; }
-        p { color: #8b91a3; margin: 0 0 18px; line-height: 1.5; font-size: 15px; }
-        a { color: #fff; background: #6d7cff; padding: 10px 18px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 14px; }
+        p { color: #8d9099; margin: 0 0 18px; line-height: 1.5; font-size: 15px; }
+        a { color: #07080c; background: #e8ecff; padding: 10px 18px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 14px; }
       </style>
       <div class="b"><div class="r"></div><h1>Лента скрыта</h1><p id="g"></p>${site.inbox ? `<a href="${site.inbox}">Открыть сообщения</a>` : ''}</div>`;
   }

@@ -2,28 +2,28 @@
 
 const LEVELS = {
   1: {
-    name: 'Лёгкий', tag: 'мягкие напоминания',
+    name: 'Лёгкий',
     dnd: true, sites: 'warn', hosts: false, apps: 'off', onlyBrave: false,
     youtube: true, clickbait: 'blur', feeds: false, pushBlock: true,
     pause: true, breakUnlock: true, lockSettings: false,
     exit: { type: 'confirm', wait: 0 },
   },
   2: {
-    name: 'Рабочий', tag: 'блок сайтов и программ',
+    name: 'Рабочий',
     dnd: true, sites: 'block', hosts: false, apps: 'block', onlyBrave: false,
     youtube: true, clickbait: 'hide', feeds: true, pushBlock: true,
     pause: false, breakUnlock: true, lockSettings: true,
     exit: { type: 'phrase', wait: 0 },
   },
   3: {
-    name: 'Жёсткий', tag: 'блок во всех браузерах',
+    name: 'Жёсткий',
     dnd: true, sites: 'block', hosts: true, apps: 'block', onlyBrave: true,
     youtube: true, clickbait: 'hide', feeds: true, pushBlock: true,
     pause: false, breakUnlock: false, lockSettings: true,
     exit: { type: 'phrase', wait: 60 },
   },
   4: {
-    name: 'Монах', tag: 'только белый список',
+    name: 'Монах',
     dnd: true, sites: 'whitelist', hosts: true, apps: 'whitelist', onlyBrave: true,
     youtube: true, clickbait: 'hide', feeds: true, pushBlock: true,
     pause: false, breakUnlock: false, lockSettings: true,
@@ -98,6 +98,16 @@ function defaultSettings() {
     alwaysClean: false,
     launchAtLogin: false,
     youtube: { shorts: true, home: true, sidebar: true, endscreen: true, comments: true, autoplay: true, notif: true },
+    // per-weekday norm in minutes (Mon..Sun); null = use dailyGoalMin
+    goalByDow: [null, null, null, null, null, null, null],
+    notify: { breakStart: true, breakSoon: true, breakEnd: true, sessionEnd: true },
+    widget: { enabled: true, always: false, x: null, y: null },
+    // tabs at session start: 'blocked' = close tabs on blocked sites, 'keep' = close everything
+    // except the whitelist and the preset's sites, 'off' = leave them (they get blocked on reload)
+    tabs: { mode: 'blocked', restore: true },
+    // work presets: apps and sites opened when a session starts
+    presets: [],
+    lastPreset: null,
     levels: {},
     lists: {
       siteCats: SITE_CATS.map(c => ({ ...c, domains: [...c.domains] })),

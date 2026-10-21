@@ -4,29 +4,35 @@
   <meta charset="utf-8">
   <title>Заблокировано — Deepwork</title>
   <style>
+    @font-face { font-family: "Inter"; font-weight: 100 900; src: url(fonts/inter-cyrillic-wght-normal.woff2) format("woff2-variations"); unicode-range: U+0400-045F, U+0490-0491, U+2116; }
+    @font-face { font-family: "Inter"; font-weight: 100 900; src: url(fonts/inter-latin-wght-normal.woff2) format("woff2-variations"); unicode-range: U+0000-00FF, U+2000-206F; }
     :root { color-scheme: dark; }
-    html, body { margin: 0; height: 100%; background: #0a0c11; color: #e9ebf2; font: 15px/1.5 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; }
+    html, body { margin: 0; height: 100%; background: #050505; color: #f2f3f5; font: 15px/1.5 "Inter", "Segoe UI", system-ui, sans-serif; }
     body { display: grid; place-items: center; }
-    .b { text-align: center; max-width: 520px; padding: 24px; }
+    .b { text-align: center; max-width: 520px; padding: 24px; animation: rise .6s cubic-bezier(.2, .8, .2, 1); }
+    @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+    body::before { content: ""; position: fixed; inset: -10% 20% auto; height: 70%; background: radial-gradient(closest-side, rgba(180, 195, 255, .07), transparent); pointer-events: none; }
     .ring { width: 150px; height: 150px; margin: 0 auto 28px; position: relative; }
     .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-    .ring .t { position: absolute; inset: 0; display: grid; place-items: center; font: 200 34px "Segoe UI Variable Display", "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
-    h1 { font: 600 28px "Segoe UI Variable Display", "Segoe UI", sans-serif; margin: 0 0 8px; letter-spacing: -.2px; }
-    .host { color: #6d7cff; }
-    p { color: #8b91a3; margin: 0 0 6px; }
-    .goal { margin: 18px 0 26px; padding: 12px 16px; border: 1px solid rgba(255, 255, 255, .08); border-radius: 12px; background: #10131a; }
-    .goal b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: #5c6273; margin-bottom: 3px; font-weight: 600; }
+    .ring .t { position: absolute; inset: 0; display: grid; place-items: center; font: 200 34px "Inter", "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
+    h1 { font: 600 28px "Inter", "Segoe UI", sans-serif; margin: 0 0 8px; letter-spacing: -.2px; }
+    .host { color: #e8ecff; }
+    p { color: #8d9099; margin: 0 0 6px; }
+    .goal { margin: 18px 0 26px; padding: 12px 16px; border: 1px solid rgba(255, 255, 255, .08); border-radius: 12px; background: #0c0c0d; }
+    .goal b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: #55585f; margin-bottom: 3px; font-weight: 600; }
     .acts { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-    button { font: inherit; border: 1px solid rgba(255, 255, 255, .12); background: #151922; color: #e9ebf2; padding: 10px 18px; border-radius: 11px; cursor: pointer; }
-    button.primary { background: #6d7cff; border-color: transparent; font-weight: 600; }
+    button { font: inherit; border: 1px solid rgba(255, 255, 255, .12); background: #111113; color: #f2f3f5; padding: 10px 18px; border-radius: 12px; cursor: pointer; transition: border-color .16s, background .16s; }
+    button:hover:not(:disabled) { border-color: rgba(255, 255, 255, .22); }
+    button.primary { background: #e8ecff; color: #07080c; border-color: transparent; font-weight: 600; box-shadow: 0 6px 26px rgba(180,195,255,.14); transition: background .16s, box-shadow .28s; }
+    button.primary:hover { background: #fff; box-shadow: 0 8px 34px rgba(180,195,255,.3); }
     button:disabled { opacity: .45; cursor: default; }
-    .tip { margin-top: 30px; font-size: 13px; color: #5c6273; }
+    .tip { margin-top: 30px; font-size: 13px; color: #55585f; }
   </style>
 </head>
 <body>
   <div class="b">
     <div class="ring">
-      <svg viewBox="0 0 150 150"><circle cx="75" cy="75" r="66" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="8"/><circle id="arc" cx="75" cy="75" r="66" fill="none" stroke="#6d7cff" stroke-width="8" stroke-linecap="round" stroke-dasharray="414.7" stroke-dashoffset="0"/></svg>
+      <svg viewBox="0 0 150 150"><circle cx="75" cy="75" r="66" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="8"/><circle id="arc" style="filter: drop-shadow(0 0 6px rgba(180,195,255,.45)); transition: stroke-dashoffset .95s linear" cx="75" cy="75" r="66" fill="none" stroke="#e8ecff" stroke-width="8" stroke-linecap="round" stroke-dasharray="414.7" stroke-dashoffset="0"/></svg>
       <div class="t" id="left"></div>
     </div>
     <h1>Ты в фокусе</h1>

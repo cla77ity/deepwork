@@ -9,10 +9,11 @@ function siteLists(settings) {
   return { block, allow: settings.lists.siteAllow.map(d => d.trim().toLowerCase()).filter(Boolean) };
 }
 
-function appRules(settings, lvl) {
+// extraAllow: process names of the session's work preset — never close what the user asked to open
+function appRules(settings, lvl, extraAllow = []) {
   const block = new Set(settings.lists.appCats.filter(c => c.on).flatMap(c => c.names).map(n => n.toLowerCase()));
   if (lvl.onlyBrave) OTHER_BROWSERS.forEach(n => block.add(n));
-  const allow = new Set(settings.lists.appAllow.map(n => n.toLowerCase()));
+  const allow = new Set([...settings.lists.appAllow, ...extraAllow].map(n => n.toLowerCase()));
   allow.forEach(n => block.delete(n));
   return { mode: lvl.apps, block, allow, safe: new Set(APP_SAFE) };
 }
@@ -33,7 +34,7 @@ class Enforcer {
   persist() { this.saveRestore(this.restore); }
 
   // full = focus phase (or break without unlock); relaxed = break with breakUnlock
-  apply(settings, lvl, phase) {
+  apply(settings, lvl, phase, extraAllow) {
     return this.queue(async () => {
       const relaxed = phase !== 'focus' && lvl.breakUnlock;
       // DND stays for the whole session
@@ -53,7 +54,7 @@ class Enforcer {
       if (lvl.apps !== 'off' || lvl.onlyBrave) {
         if (relaxed) { this.apps.stop(); this.status.apps = 'paused'; }
         else {
-          const rules = appRules(settings, lvl);
+          const rules = appRules(settings, lvl, extraAllow);
           if (lvl.apps === 'off') rules.block = new Set(OTHER_BROWSERS);
           this.apps.start(rules);
           this.status.apps = 'on';
@@ -79,9 +80,9 @@ class Enforcer {
   }
 
   // Apps that would be closed right now — shown before a session starts.
-  async preview(settings, lvl) {
+  async preview(settings, lvl, extraAllow) {
     if (lvl.apps === 'off' && !lvl.onlyBrave) return [];
-    const rules = appRules(settings, lvl);
+    const rules = appRules(settings, lvl, extraAllow);
     if (lvl.apps === 'off') rules.block = new Set(OTHER_BROWSERS);
     const list = await this.apps.snapshot();
     const seen = new Map();

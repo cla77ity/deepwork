@@ -6,8 +6,9 @@ const { EventEmitter } = require('events');
 const PORT = 47321;
 
 class Bridge extends EventEmitter {
-  constructor(getState) {
+  constructor(getState, port = PORT) {
     super();
+    this.port = port;
     this.getState = getState;
     this.clients = new Set();
     this.info = new Map();
@@ -15,7 +16,7 @@ class Bridge extends EventEmitter {
 
   start() {
     this.wss = new WebSocketServer({
-      host: '127.0.0.1', port: PORT,
+      host: '127.0.0.1', port: this.port,
       verifyClient: ({ origin }) => /^(chrome|moz)-extension:\/\//.test(origin || ''),
     });
     this.wss.on('error', e => this.emit('error', e));

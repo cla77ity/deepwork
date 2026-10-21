@@ -37,7 +37,7 @@ function ring(size) {
     const a = Math.min(1, Math.max(0, rO - d + 0.5)) * Math.min(1, Math.max(0, d - rI + 0.5));
     if (a <= 0) continue;
     const i = (y * size + x) * 4;
-    buf[i] = 0x6d; buf[i + 1] = 0x7c; buf[i + 2] = 0xff; buf[i + 3] = Math.round(a * 255);
+    buf[i] = 0xe8; buf[i + 1] = 0xec; buf[i + 2] = 0xff; buf[i + 3] = Math.round(a * 255);
   }
   return png(size, buf);
 }

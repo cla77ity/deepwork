@@ -48,6 +48,8 @@
     right: '<path d="M9 5l7 7-7 7"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
     inbox: '<path d="M3 13l3-8h12l3 8v6H3z"/><path d="M3 13h5l1 3h6l1-3h5"/>',
+    journal: '<path d="M6 3.5h11a1.5 1.5 0 0 1 1.5 1.5v14a1.5 1.5 0 0 1-1.5 1.5H6z"/><path d="M6 3.5v17M9.5 8h5.5M9.5 11.5h5.5"/>',
+    repeat: '<path d="M4 12a8 8 0 0 1 13.7-5.6L20 9M20 4v5h-5M20 12a8 8 0 0 1-13.7 5.6L4 15M4 20v-5h5"/>',
   };
   DW.iconBtn = (name, title, on) => h('button.icon-btn', { title, onclick: e => { e.stopPropagation(); on(e); } }, DW.svg(DW.icons[name]));
 
@@ -63,10 +65,11 @@
   DW.longDate = ymd => { const d = DW.parse(ymd); return `${DW.DOW_FULL[d.getDay()]}, ${d.getDate()} ${DW.MONTHS_GEN[d.getMonth()]}`; };
 
   DW.clock = ms => { const t = Math.max(0, Math.round(ms / 1000)); const hh = Math.floor(t / 3600), mm = Math.floor(t % 3600 / 60), ss = t % 60; return (hh ? hh + ':' + String(mm).padStart(2, '0') : mm) + ':' + String(ss).padStart(2, '0'); };
+  DW.plural = (n, a, b, c) => { const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? a : m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20) ? b : c; };
+  DW.count = (n, a, b, c) => `${n} ${DW.plural(n, a, b, c)}`;
   DW.dur = min => { min = Math.round(min); if (min < 60) return min + ' мин'; if (min >= 600) return Math.round(min / 60) + ' ч'; const hh = Math.floor(min / 60), mm = min % 60; return hh + ' ч' + (mm ? ' ' + mm + ' мин' : ''); };
   DW.durShort = min => { min = Math.round(min); if (min < 60) return min + 'м'; const hh = Math.floor(min / 60), mm = min % 60; return hh + 'ч' + (mm ? mm : ''); };
   DW.hhmm = ts => { const d = new Date(ts); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
-  DW.plural = (n, a, b, c) => { const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? a : m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20) ? b : c; };
 
   // focus minutes per local day, from finished sessions (+ the running one)
   DW.focusByDay = () => {
@@ -74,21 +77,48 @@
     for (const s of DW.state.sessions) { const k = DW.ymd(s.start); map[k] = (map[k] || 0) + s.focusMs / 60000; }
     return map;
   };
+  // Monday-based weekday index, 0..6
+  DW.dowOf = ymd => (DW.parse(ymd).getDay() + 6) % 7;
+  // daily norm in minutes: a weekday override, else the common norm. 0 = day off
+  DW.goalFor = ymd => {
+    const st = DW.state.settings;
+    const o = (st.goalByDow || [])[DW.dowOf(ymd)];
+    return o == null ? st.dailyGoalMin : o;
+  };
+  const metGoal = (by, d) => { const g = DW.goalFor(d); return g > 0 && (by[d] || 0) >= g; };
+  const dayOff = d => DW.goalFor(d) === 0;
+  // days in a row with the norm met; days off don't break the streak
   DW.streak = () => {
-    const by = DW.focusByDay(), goal = DW.state.settings.dailyGoalMin;
+    const by = DW.focusByDay();
     let n = 0, d = DW.today();
-    if ((by[d] || 0) < goal) d = DW.addDays(d, -1); // today still in progress
-    while ((by[d] || 0) >= goal) { n++; d = DW.addDays(d, -1); }
+    if (!metGoal(by, d)) d = DW.addDays(d, -1); // today still in progress
+    for (let guard = 0; guard < 3650; guard++, d = DW.addDays(d, -1)) {
+      if (metGoal(by, d)) n++;
+      else if (!dayOff(d)) break;
+    }
     return n;
   };
+  DW.metGoal = metGoal;
 
-  DW.GOAL_COLORS = ['#6d7cff', '#3ecf8e', '#f5b04a', '#ff5d8a', '#38c9c0', '#b07cff', '#ff8a4c', '#8b91a3'];
+  // routines scheduled on a date and which of them are done
+  DW.routinesFor = ymd => DW.state.routines.filter(r => r.active !== false && (r.days || []).includes(DW.dowOf(ymd)))
+    .sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
+  DW.routineDone = (ymd, id) => (DW.state.routineLog[ymd] || []).includes(id);
+
+  // muted tones: goals need telling apart, but nothing should shout next to the white accent
+  DW.GOAL_COLORS = ['#e8ecff', '#9fb2f5', '#8fd2b2', '#dcc08c', '#df9a9a', '#b8a4e3', '#86c6d3', '#8d9099'];
   DW.goalById = id => DW.state.goals.find(g => g.id === id);
 
   // ---- modal ----
   DW.modal = function (build) {
     const root = document.getElementById('modal-root');
-    const close = () => { root.innerHTML = ''; document.removeEventListener('keydown', esc); if (close.onclose) close.onclose(); };
+    // play the exit animation, then drop the node (unless a new modal replaced it meanwhile)
+    const close = () => {
+      document.removeEventListener('keydown', esc);
+      if (close.onclose) close.onclose();
+      bg.classList.add('out');
+      setTimeout(() => bg.remove(), 180);
+    };
     const esc = e => { if (e.key === 'Escape' && !close.sticky) close(); };
     const box = h('div.modal');
     const bg = h('div.modal-bg', { onmousedown: e => { if (e.target === bg && !close.sticky) close(); } }, box);
@@ -113,7 +143,7 @@
   DW.toast = (text, bad) => {
     const t = h('div.toast' + (bad ? '.bad' : ''), text);
     document.getElementById('toasts').appendChild(t);
-    setTimeout(() => t.remove(), 3200);
+    setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 260); }, 3200);
   };
 
   DW.call = async (ch, ...a) => {

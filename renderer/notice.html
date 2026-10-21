@@ -2,39 +2,54 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'">
   <style>
-    html, body { margin: 0; background: transparent; overflow: hidden; font: 14px/1.4 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; color: #e9ebf2; }
-    .n { position: absolute; inset: 6px; border-radius: 16px; background: rgba(16, 19, 26, .96); border: 1px solid rgba(255, 255, 255, .1);
-      display: flex; gap: 14px; align-items: center; padding: 0 18px; box-shadow: 0 10px 30px rgba(0, 0, 0, .45); opacity: 0; transform: translateY(8px); transition: .25s; }
+    @font-face { font-family: "Inter"; font-weight: 100 900; src: url(fonts/inter-cyrillic-wght-normal.woff2) format("woff2-variations"); unicode-range: U+0400-045F, U+0490-0491, U+2116; }
+    @font-face { font-family: "Inter"; font-weight: 100 900; src: url(fonts/inter-latin-wght-normal.woff2) format("woff2-variations"); unicode-range: U+0000-00FF, U+2000-206F; }
+    html, body { margin: 0; background: transparent; overflow: hidden; font: 13.5px/1.4 "Inter", "Segoe UI", sans-serif; color: #f2f3f5; -webkit-font-smoothing: antialiased; }
+    .n { position: absolute; inset: 6px; border-radius: 18px; background: rgba(10, 10, 12, .96); border: 1px solid rgba(255, 255, 255, .1);
+      display: flex; gap: 15px; align-items: center; padding: 0 20px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05);
+      opacity: 0; transform: translateY(10px) scale(.98); transition: opacity .35s cubic-bezier(.2, .8, .2, 1), transform .35s cubic-bezier(.2, .8, .2, 1); overflow: hidden; }
     .n.show { opacity: 1; transform: none; }
-    .ring { width: 30px; height: 30px; border-radius: 50%; border: 4px solid var(--c); box-shadow: 0 0 16px var(--c); flex: none; }
-    b { display: block; font: 600 15px "Segoe UI Variable Display", "Segoe UI", sans-serif; }
-    span { color: #8b91a3; font-size: 13px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .ring { width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--c); box-shadow: 0 0 14px var(--g), inset 0 0 6px var(--g); flex: none; }
+    b { display: block; font-weight: 600; font-size: 14.5px; letter-spacing: -.01em; }
+    span { color: #8d9099; font-size: 12.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    /* time-left line along the bottom */
+    .bar { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--c); box-shadow: 0 0 8px var(--g); width: 100%; transform-origin: left; }
+    .n.show .bar { animation: drain var(--ms) linear forwards; }
+    @keyframes drain { to { transform: scaleX(0); } }
   </style>
 </head>
 <body>
-  <div class="n" id="n"><div class="ring"></div><div><b id="t"></b><span id="b"></span></div></div>
+  <div class="n" id="n"><div class="ring"></div><div><b id="t"></b><span id="b"></span></div><i class="bar"></i></div>
   <script>
-    const COLORS = { focus: '#6d7cff', break: '#38c9c0', done: '#3ecf8e', warn: '#f5b04a', block: '#ff5d6c', info: '#6d7cff' };
+    // one accent for everything that is "you"; muted status tones only for warnings
+    const KIND = {
+      focus: ['#e8ecff', 'rgba(180,195,255,.5)'], done: ['#e8ecff', 'rgba(180,195,255,.5)'], info: ['#e8ecff', 'rgba(180,195,255,.5)'],
+      break: ['#8d9099', 'rgba(141,144,153,.35)'], soon: ['#d9b26a', 'rgba(217,178,106,.35)'],
+      warn: ['#d9b26a', 'rgba(217,178,106,.35)'], block: ['#e5676b', 'rgba(229,103,107,.35)'],
+    };
     function chime(kind) {
       const ctx = new AudioContext();
-      const notes = kind === 'break' ? [784, 659] : kind === 'block' ? [330] : kind === 'done' ? [523, 659, 784] : [659, 784];
+      const notes = kind === 'break' ? [784, 659] : kind === 'block' ? [330] : kind === 'done' ? [523, 659, 784] : kind === 'soon' ? [659] : [659, 784];
       notes.forEach((f, i) => {
         const o = ctx.createOscillator(), g = ctx.createGain();
         o.type = 'sine'; o.frequency.value = f;
         const t = ctx.currentTime + i * 0.16;
-        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.18, t + 0.02); g.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.16, t + 0.02); g.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
         o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + 1);
       });
     }
-    window.dw.on('notice', ({ title, body, kind, sound }) => {
+    window.dw.on('notice', ({ title, body, kind, sound, ms }) => {
       const n = document.getElementById('n');
-      n.style.setProperty('--c', COLORS[kind] || COLORS.info);
+      const [c, g] = KIND[kind] || KIND.info;
+      n.style.setProperty('--c', c);
+      n.style.setProperty('--g', g);
+      n.style.setProperty('--ms', (ms || 5200) + 'ms');
       document.getElementById('t').textContent = title;
       document.getElementById('b').textContent = body || '';
       n.classList.remove('show'); void n.offsetWidth; n.classList.add('show');
-      clearTimeout(window.hideT); window.hideT = setTimeout(() => n.classList.remove('show'), 4800);
+      clearTimeout(window.hideT); window.hideT = setTimeout(() => n.classList.remove('show'), (ms || 5200) - 200);
       if (sound) chime(kind);
     });
   </script>

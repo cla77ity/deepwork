@@ -1,7 +1,7 @@
 // Boot: load state, nav, routing, live updates from main.
 (function () {
   const { h } = DW;
-  const NAV = [['focus', 'Фокус'], ['plan', 'План'], ['blocks', 'Блокировки'], ['stats', 'Статистика'], ['settings', 'Настройки']];
+  const NAV = [['focus', 'Фокус'], ['plan', 'План'], ['journal', 'Журнал'], ['stats', 'Статистика'], ['blocks', 'Блокировки'], ['settings', 'Настройки']];
 
   DW.levelCfg = n => {
     const D = DW.state.defaults.levels;
@@ -13,6 +13,7 @@
   DW.go = view => {
     if (DW.views[DW.view] && DW.views[DW.view].leave) DW.views[DW.view].leave();
     DW.view = view;
+    DW.entering = true;
     DW.render();
   };
 
@@ -22,6 +23,10 @@
     const v = DW.views[DW.view];
     if (v.leave) v.leave();
     root.innerHTML = '';
+    // entrance animation only on navigation — data refreshes must not make the page jump
+    clearTimeout(DW.enterT);
+    root.classList.toggle('enter', !!DW.entering);
+    if (DW.entering) { DW.entering = false; DW.enterT = setTimeout(() => root.classList.remove('enter'), 900); }
     v.render(root);
     root.scrollTop = scroll;
     renderNav();
@@ -38,12 +43,12 @@
     let done = by[DW.today()] || 0;
     if (s && s.phase === 'focus') done += ((s.pausedAt || Date.now()) - s.phaseStart) / 60000;
     if (s) done += s.focusMs / 60000;
-    const goal = DW.state.settings.dailyGoalMin;
+    const goal = DW.goalFor(DW.today());
     const ext = DW.state.ext || {};
     nav.append(h('div.side-foot',
-      h('div.row', h('span.muted', 'Сегодня'), h('div.spacer'), h('b.num', DW.durShort(done) + ' / ' + DW.durShort(goal))),
-      h('div.bar', h('i', { style: { width: Math.min(100, done / goal * 100) + '%' } })),
-      h('div.muted', { style: { fontSize: '12px' } }, h('span.stat-dot.' + (ext.connected ? 'ok' : 'bad')), ext.connected ? 'Brave подключён' : 'Brave не подключён')));
+      h('div.row', h('span.muted', 'Сегодня'), h('div.spacer'), h('b.num', DW.durShort(done) + (goal ? ' / ' + DW.durShort(goal) : ''))),
+      h('div.bar', h('i', { style: { width: (goal ? Math.min(100, done / goal * 100) : 100) + '%' } })),
+      h('div.muted', { style: { fontSize: '12px' } }, h('span.stat-dot.' + (ext.connected ? 'ok' : 'bad')), ext.connected ? 'Расширение подключено' : 'Расширение не подключено')));
   }
 
   let pillTimer;
@@ -69,17 +74,26 @@
   document.querySelectorAll('[data-win]').forEach(b => b.addEventListener('click', () => window.dw.call('win:' + b.dataset.win)));
 
   window.dw.on('session', p => {
+    // session started or ended: the focus screen changes entirely, so animate it in
+    if (!!DW.state.session !== !!p.session || (p.session && DW.state.session && p.session.phase !== DW.state.session.phase)) DW.entering = true;
     Object.assign(DW.state, p);
     // don't rebuild the plan/blocks/settings views on timer events — it would drop what's being typed
     if (DW.view === 'focus') DW.render(); else { renderPill(); renderNav(); }
   });
-  window.dw.on('data', p => { Object.assign(DW.state, p); DW.render(); });
+  window.dw.on('data', p => {
+    Object.assign(DW.state, p);
+    // autosaving text (journal) must not rebuild the page under the cursor
+    const a = document.activeElement;
+    if (a && a.tagName === 'TEXTAREA' && a.closest('#view')) { renderNav(); return; }
+    DW.render();
+  });
   window.dw.on('finished', rec => DW.onFinished(rec));
 
   window.dw.call('init').then(st => {
     DW.state = st;
     const q = new URLSearchParams(location.search);
     if (q.get('view')) DW.view = q.get('view');
+    DW.entering = true;
     DW.render();
   });
 })();

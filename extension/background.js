@@ -48,8 +48,11 @@ async function applyState(s) {
   await updateRules(s);
   await updatePush(s);
   if (effective(s) && !effective(prev)) sweepTabs(s);
+  // session over (not just a break): give back the tabs closed at its start
+  if (prev && prev.active && !(s && s.active)) restoreTabs();
   chrome.action.setBadgeText({ text: effective(s) ? '●' : '' });
-  chrome.action.setBadgeBackgroundColor({ color: s && s.phase === 'focus' ? '#6d7cff' : '#38c9c0' });
+  chrome.action.setBadgeBackgroundColor({ color: s && s.phase === 'focus' ? '#e8ecff' : '#8d9099' });
+  if (chrome.action.setBadgeTextColor) chrome.action.setBadgeTextColor({ color: '#07080c' });
 }
 
 async function updateRules(s) {
@@ -77,17 +80,38 @@ async function updatePush(s) {
   } catch { /* contentSettings may be unavailable in some builds */ }
 }
 
-// already-open tabs on blocked sites get reloaded so the rule catches them
+// At the start of focus: close distracting tabs (remembered for later) or, with tabs.mode 'off',
+// reload them so the block rule catches them.
 async function sweepTabs(s) {
-  const mode = s.sites && s.sites.mode;
-  if (!mode || mode === 'off') return;
+  const siteMode = s.sites && s.sites.mode;
+  const tabMode = (s.tabs && s.tabs.mode) || 'blocked';
+  const keep = [...(s.sites ? s.sites.allow : []), ...(s.keep || []), 'localhost', '127.0.0.1'];
+  const blocked = host => siteMode === 'whitelist' ? !matches(host, keep) : siteMode && siteMode !== 'off' && matches(host, s.sites.block);
   const tabs = await chrome.tabs.query({});
+  const close = [];
   for (const t of tabs) {
     if (!t.url || !/^https?:/.test(t.url)) continue;
     const host = hostOf(t.url);
-    const hit = mode === 'whitelist' ? !matches(host, [...s.sites.allow, 'localhost', '127.0.0.1']) : matches(host, s.sites.block);
-    if (hit) chrome.tabs.update(t.id, { url: t.url });
+    const hit = blocked(host);
+    if (tabMode === 'keep' ? (!matches(host, keep) && (!t.pinned || hit)) : tabMode === 'blocked' ? hit : false) close.push(t);
+    else if (hit) chrome.tabs.update(t.id, { url: t.url });
   }
+  if (!close.length) return;
+  // a window must not lose its last tab (that would close the window, maybe the whole browser)
+  const left = new Map();
+  for (const t of tabs) left.set(t.windowId, (left.get(t.windowId) || 0) + 1);
+  for (const t of close) left.set(t.windowId, left.get(t.windowId) - 1);
+  for (const [wid, n] of left) if (n <= 0) await chrome.tabs.create({ windowId: wid, url: 'chrome://newtab' });
+  const { closedTabs = [] } = await chrome.storage.local.get('closedTabs');
+  await chrome.storage.local.set({ closedTabs: [...closedTabs, ...close.map(t => t.url)].slice(-60) });
+  await chrome.tabs.remove(close.map(t => t.id));
+}
+
+async function restoreTabs() {
+  const { closedTabs = [], dw } = await chrome.storage.local.get(['closedTabs', 'dw']);
+  await chrome.storage.local.set({ closedTabs: [] });
+  const restore = !dw || !dw.tabs || dw.tabs.restore !== false;
+  if (restore && closedTabs.length) chrome.windows.create({ url: [...new Set(closedTabs)], focused: false });
 }
 
 // "open anyway" from the blocked page — only in warn mode, for a few minutes
@@ -124,6 +148,11 @@ chrome.alarms.onAlarm.addListener(async a => {
 });
 
 chrome.alarms.create('tick', { periodInMinutes: 0.5 });
+// alarms can't fire more often than every 30 s; browsing activity reconnects sooner
+let lastTry = 0;
+const nudge = () => { if (Date.now() - lastTry > 3000) { lastTry = Date.now(); connect(); } };
+chrome.tabs.onActivated.addListener(nudge);
+chrome.tabs.onUpdated.addListener((id, info) => { if (info.status === 'loading') nudge(); });
 chrome.runtime.onStartup.addListener(connect);
 chrome.runtime.onInstalled.addListener(connect);
 connect();

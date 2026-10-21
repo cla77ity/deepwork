@@ -12,9 +12,9 @@ let id = 0;
 const nid = () => 'd' + (++id);
 
 const goals = [
-  { id: 'g1', title: 'Выпустить Deepwork на GitHub', deadline: day(20), color: '#6d7cff', createdAt: Date.now() },
-  { id: 'g2', title: 'Английский до B2', deadline: day(90), color: '#3ecf8e', createdAt: Date.now() },
-  { id: 'g3', title: 'Lume Client 1.0', deadline: day(-2), color: '#f5b04a', createdAt: Date.now() },
+  { id: 'g1', title: 'Выпустить Deepwork на GitHub', deadline: day(20), color: '#e8ecff', createdAt: Date.now() },
+  { id: 'g2', title: 'Английский до B2', deadline: day(90), color: '#8fd2b2', createdAt: Date.now() },
+  { id: 'g3', title: 'Lume Client 1.0', deadline: day(-2), color: '#dcc08c', createdAt: Date.now() },
 ];
 const T = (title, date, extra = {}) => ({ id: nid(), title, date, done: false, prio: 2, est: 0, time: '', goalId: null, notes: '', createdAt: Date.now() - id * 1000, ...extra });
 const tasks = [
@@ -51,6 +51,30 @@ const t0 = new Date(); t0.setHours(9, 30, 0, 0);
 sessions.push({ id: 'today1', start: t0.getTime(), end: t0.getTime() + 50 * 60000, focusMs: 50 * 60000, mode: 'pomodoro', level: 2, goal: 'Расширение для Brave', taskId: tasks[0].id, result: 'done', rounds: 2, attempts: { sites: { 'tiktok.com': 3 }, apps: {} } });
 sessions.sort((a, b) => a.start - b.start);
 
-fs.writeFileSync(path.join(dir, 'data.json'), JSON.stringify({ v: 1, settings: defaultSettings(), tasks, goals, sessions }, null, 1));
+const settings = defaultSettings();
+settings.presets = [
+  { id: 'p1', name: 'Код', apps: [{ name: 'Code', path: 'C:/Program Files/Microsoft VS Code/Code.exe' }], urls: ['github.com', 'claude.ai'] },
+  { id: 'p2', name: 'Учёба', apps: [], urls: ['duolingo.com', 'notion.so'] },
+];
+settings.lastPreset = 'p1';
+settings.goalByDow = [null, null, null, null, null, 60, 0];
+const routines = [
+  { id: 'r1', title: 'Зарядка', days: [0, 1, 2, 3, 4, 5, 6], time: '08:00', est: 15, createdAt: Date.now() - 40 * 86400000 },
+  { id: 'r2', title: '30 минут английского', days: [0, 1, 2, 3, 4], time: '19:00', est: 30, createdAt: Date.now() - 40 * 86400000 },
+  { id: 'r3', title: 'Разбор недели', days: [6], time: '20:00', est: 30, createdAt: Date.now() - 40 * 86400000 },
+];
+const routineLog = {};
+for (let i = 0; i < 20; i++) routineLog[day(-i)] = ['r1', 'r2', 'r3'].filter(() => Math.random() < (i === 0 ? 0.5 : 0.75));
+const MOODS = [[4, 3], [3, 2], [5, 4], [2, 2], [4, 5], [3, 3], [4, 4]];
+const journal = {};
+for (let i = 0; i < 7; i++) {
+  const [mood, energy] = MOODS[i];
+  journal[day(-i)] = { mood, energy,
+    wins: ['Доделал чистку YouTube в расширении', 'Закрыл три задачи по Lume', 'Прочитал главу «Deep Work»', '', 'Настроил календарь планов', 'Выучил 40 слов', ''][i],
+    blockers: ['', 'Телеграм — 3 раза полез проверять чаты', '', 'Плохо спал, тяжело было включиться', 'YouTube на перерыве затянул', '', ''][i],
+    tomorrow: i === 0 ? ['README и скриншоты', 'Тест на всех уровнях'].join('\n') : '' };
+}
+journal[day(0)].notes = [{ at: Date.now() - 3 * 3600000, text: 'Первые 15 минут раскачивался, потом пошло.', goal: 'Расширение для Brave', min: 50 }];
+fs.writeFileSync(path.join(dir, 'data.json'), JSON.stringify({ v: 1, settings, tasks, goals, sessions, routines, routineLog, journal }, null, 1));
 try { fs.unlinkSync(path.join(dir, 'state.json')); } catch { }
 console.log('demo profile at', dir);
