@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Deepwork",
+  "version": "0.1.0",
+  "description": "Focus companion for the Deepwork desktop app: blocks distracting sites, cleans YouTube, hides clickbait and social feeds.",
+  "permissions": ["declarativeNetRequest", "storage", "alarms", "tabs", "contentSettings"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["content/common.js", "content/youtube.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["*://*.vk.com/*", "*://*.instagram.com/*", "*://*.x.com/*", "*://*.twitter.com/*", "*://*.reddit.com/*", "*://*.facebook.com/*", "*://*.tiktok.com/*", "*://*.threads.net/*"],
+      "js": ["content/common.js", "content/feeds.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content/common.js", "content/clickbait.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [{ "resources": ["blocked.html"], "matches": ["<all_urls>"] }],
+  "action": { "default_popup": "popup.html", "default_title": "Deepwork" },
+  "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" }
+}

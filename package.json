@@ -1,0 +1,19 @@
+{
+  "name": "deepwork",
+  "productName": "Deepwork",
+  "version": "0.1.0",
+  "description": "Full focus mode for Windows: timer, levels, notification mute, site/app blocking, Brave cleanup, planner",
+  "main": "main.js",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dry": "electron . --dry"
+  },
+  "devDependencies": {
+    "electron": "^44.5.1"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

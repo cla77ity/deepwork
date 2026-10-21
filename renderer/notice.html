@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+  <style>
+    html, body { margin: 0; background: transparent; overflow: hidden; font: 14px/1.4 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; color: #e9ebf2; }
+    .n { position: absolute; inset: 6px; border-radius: 16px; background: rgba(16, 19, 26, .96); border: 1px solid rgba(255, 255, 255, .1);
+      display: flex; gap: 14px; align-items: center; padding: 0 18px; box-shadow: 0 10px 30px rgba(0, 0, 0, .45); opacity: 0; transform: translateY(8px); transition: .25s; }
+    .n.show { opacity: 1; transform: none; }
+    .ring { width: 30px; height: 30px; border-radius: 50%; border: 4px solid var(--c); box-shadow: 0 0 16px var(--c); flex: none; }
+    b { display: block; font: 600 15px "Segoe UI Variable Display", "Segoe UI", sans-serif; }
+    span { color: #8b91a3; font-size: 13px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  </style>
+</head>
+<body>
+  <div class="n" id="n"><div class="ring"></div><div><b id="t"></b><span id="b"></span></div></div>
+  <script>
+    const COLORS = { focus: '#6d7cff', break: '#38c9c0', done: '#3ecf8e', warn: '#f5b04a', block: '#ff5d6c', info: '#6d7cff' };
+    function chime(kind) {
+      const ctx = new AudioContext();
+      const notes = kind === 'break' ? [784, 659] : kind === 'block' ? [330] : kind === 'done' ? [523, 659, 784] : [659, 784];
+      notes.forEach((f, i) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sine'; o.frequency.value = f;
+        const t = ctx.currentTime + i * 0.16;
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.18, t + 0.02); g.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
+        o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + 1);
+      });
+    }
+    window.dw.on('notice', ({ title, body, kind, sound }) => {
+      const n = document.getElementById('n');
+      n.style.setProperty('--c', COLORS[kind] || COLORS.info);
+      document.getElementById('t').textContent = title;
+      document.getElementById('b').textContent = body || '';
+      n.classList.remove('show'); void n.offsetWidth; n.classList.add('show');
+      clearTimeout(window.hideT); window.hideT = setTimeout(() => n.classList.remove('show'), 4800);
+      if (sound) chime(kind);
+    });
+  </script>
+</body>
+</html>
