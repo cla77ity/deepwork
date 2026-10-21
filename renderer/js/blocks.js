@@ -2,7 +2,8 @@
 (function () {
   const { h } = DW;
 
-  const splitList = v => [...new Set(v.split(/[\s,;]+/).map(x => x.trim().toLowerCase()
+  // sites split on any whitespace; app names may contain spaces ("Google Chrome"), so only lines/commas
+  const splitList = (v, key = 'domains') => [...new Set(v.split(key === 'domains' ? /[\s,;]+/ : /[\n,;]+/).map(x => x.trim().toLowerCase()
     .replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '').replace(/\.exe$/, '')).filter(Boolean))];
 
   function saveLists(lists) { return DW.call('settings:set', { lists }); }
@@ -19,8 +20,8 @@
         h('span.dim', { style: { fontSize: '12px' } }, unit(key, items.length)),
         locked ? null : h('button.btn.ghost.sm', { onclick: () => { editing = !editing; paint(); } }, editing ? 'Готово' : 'Изменить')));
       if (editing) {
-        const ta = h('textarea.input', { placeholder: key === 'domains' ? 'по одному в строке: example.com' : 'по одному в строке, без .exe: steam' }, items.join('\n'));
-        ta.addEventListener('change', () => { cat[key] = splitList(ta.value); saveLists(lists); });
+        const ta = h('textarea.input', { placeholder: key === 'domains' ? 'по одному в строке: example.com' : `по одному в строке, ${DW.os().proc}: steam` }, items.join('\n'));
+        ta.addEventListener('change', () => { cat[key] = splitList(ta.value, key); saveLists(lists); });
         card.append(ta);
         setTimeout(() => ta.focus(), 0);
       } else card.append(h('div.list', items.length ? items.join(', ') : h('span.dim', 'Пусто — нажми «Изменить», чтобы добавить')));
@@ -29,9 +30,9 @@
     return card;
   }
 
-  function listCard(title, desc, arr, setArr, lists, locked, placeholder) {
+  function listCard(title, desc, arr, setArr, lists, locked, placeholder, key) {
     const ta = h('textarea.input', { disabled: locked, placeholder, style: { minHeight: '120px' } }, arr.join('\n'));
-    ta.addEventListener('change', () => { setArr(splitList(ta.value)); saveLists(lists); });
+    ta.addEventListener('change', () => { setArr(splitList(ta.value, key)); saveLists(lists); });
     return h('div.cat.allow', h('div.ch', h('b', title)), h('div.list', desc), ta);
   }
 
@@ -67,7 +68,7 @@
       h('div.row', h('div.h2', 'Программы'), h('div.spacer'), locked ? null : h('button.btn.sm', { onclick: addRunning }, DW.svg(DW.icons.plus), 'Добавить запущенную')),
       h('p', { style: { marginTop: '4px' } }, 'Закрываются сразу при запуске. Системные процессы и консоли со скриптами (python, node, java) не трогаются никогда.'),
       h('div.cats.stagger', lists.appCats.map(c => catCard(c, 'names', lists, locked)),
-        listCard('Белый список', 'В режиме «только белый список» закрывается всё с окном, кроме этих программ. Имя процесса без .exe.', lists.appAllow, v => { lists.appAllow = v; }, lists, locked, 'code'))));
+        listCard('Белый список', `В режиме «только белый список» закрывается всё с окном, кроме этих программ. Пиши ${DW.os().proc}.`, lists.appAllow, v => { lists.appAllow = v; }, lists, locked, 'code', 'names'))));
   }
 
   DW.views.blocks = { render, title: 'Блокировки' };

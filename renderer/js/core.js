@@ -155,6 +155,11 @@
   DW.switchEl = (checked, onchange, disabled) =>
     h('label.switch', h('input', { type: 'checkbox', checked, disabled, onchange: e => onchange(e.target.checked) }), h('span'));
 
+  // platform wording: where things live on each OS
+  DW.os = () => DW.state.platform === 'darwin'
+    ? { name: 'macOS', admin: 'macOS попросит пароль администратора', tray: 'строке меню', proc: 'имя как в Dock' }
+    : { name: 'Windows', admin: 'Windows попросит права администратора', tray: 'трее', proc: 'имя процесса без .exe' };
+
   DW.locked = () => {
     const s = DW.state.session;
     if (!s) return false;

@@ -33,6 +33,23 @@
     return card;
   }
 
+  // ---------------------------------------------------------------- macOS Focus
+  // macOS has no API to switch Focus on; Deepwork runs two Shortcuts the user creates once
+  function macFocusSection() {
+    const [on, off] = DW.state.shortcuts || ['Deepwork Focus On', 'Deepwork Focus Off'];
+    const en = DW.state.enforce || {};
+    return h('div.section#mac-focus', h('h2', '«Не беспокоить» на Mac'),
+      h('p', 'macOS не даёт программам включать фокусирование напрямую. Deepwork запускает два ярлыка из приложения «Команды» — создай их один раз.'),
+      h('div.card.col', { style: { gap: '12px' } },
+        en.dnd === false ? h('div.row', h('span.stat-dot.warn'), 'Ярлыки не найдены — «Не беспокоить» не включился') : null,
+        h('ol.steps',
+          h('li', 'Открой приложение ', h('b', 'Команды'), ' (Shortcuts) → ', h('b', '+'), ' новая команда'),
+          h('li', 'Добавь действие ', h('b', 'Фокусирование'), ' (Set Focus) → «Не беспокоить» → ', h('b', 'Включить')),
+          h('li', 'Назови команду ', h('code', on)),
+          h('li', 'Сделай вторую такую же с ', h('b', 'Выключить'), ' и назови ', h('code', off))),
+        h('div.hint', 'Проверить можно в Терминале: shortcuts list')));
+  }
+
   // ---------------------------------------------------------------- presets
   function presetsSection() {
     const presets = JSON.parse(JSON.stringify(DW.state.settings.presets));
@@ -111,6 +128,7 @@
     const extSection = section('Расширение для Brave', 'Блокирует сайты, закрывает лишние вкладки, чистит YouTube, кликбейт и ленты. Без него сайты закрываются только через hosts.', extensionCard(ext));
     if (!ext.connected) root.append(extSection);
 
+    if (DW.state.platform === 'darwin') root.append(macFocusSection());
     root.append(presetsSection());
 
     const tabsMode = st.tabs.mode;
@@ -154,7 +172,7 @@
     // ---- notifications & widget
     const n = { ...st.notify };
     const nRow = (k, label) => h('div.row', DW.switchEl(n[k], v => { n[k] = v; set({ notify: n }); }), label);
-    root.append(section('Уведомления', 'Свои окошки в углу экрана. Работают при включённом «Не беспокоить» Windows.',
+    root.append(section('Уведомления', `Свои окошки в углу экрана. Работают и при включённом «Не беспокоить» ${DW.os().name}.`,
       h('div.card', h('div.set-grid',
         nRow('breakStart', 'Начало перерыва'), nRow('breakSoon', 'За минуту до конца перерыва'),
         nRow('breakEnd', 'Конец перерыва'), nRow('sessionEnd', 'Конец сессии'),
@@ -181,7 +199,7 @@
     root.append(section('Общие', null,
       h('div.card.col', { style: { gap: '14px' } },
         gen('alwaysClean', 'Чистить YouTube и кликбейт всегда', 'даже вне сессии, без блокировки сайтов'),
-        gen('launchAtLogin', 'Запускать вместе с Windows', 'сразу в трей, без окна'),
+        gen('launchAtLogin', `Запускать вместе с ${DW.os().name}`, `сразу в ${DW.os().tray}, без окна`),
         h('div.row', h('span.muted', 'Данные'), h('code', DW.state.userDir), h('button.btn.sm', { onclick: () => window.dw.call('open:path', DW.state.userDir) }, 'Открыть')))));
 
     if (ext.connected) root.append(extSection);

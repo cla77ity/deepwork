@@ -123,7 +123,7 @@
       if (!ok) return;
     }
     const L = DW.levelCfg(lvl);
-    if (L.hosts) DW.toast('Windows попросит права администратора — это для блокировки сайтов во всех браузерах');
+    if (L.hosts) DW.toast(DW.os().admin + ' — это для блокировки сайтов во всех браузерах');
     const r = await DW.call('session:start', { mode: draft.mode, level: lvl, goal: draft.goal.trim(), taskId: draft.taskId, presetId: draft.presetId });
     if (r && r.ok) { draft.goal = ''; draft.taskId = null; }
   }
@@ -221,7 +221,8 @@
     const rows = [];
     rows.push(h('div.prot', dot(!ext.connected ? 'bad' : ext.incognito ? 'ok' : 'warn'), 'Расширение Brave', h('span.v', ext.connected ? (ext.incognito ? 'подключено' : 'не в приватных окнах') : h('a.link', { onclick: () => DW.go('settings') }, 'установить'))));
     if (s) {
-      if (L.dnd) rows.push(h('div.prot', dot(en.dnd ? 'ok' : en.dnd === false ? 'warn' : ''), '«Не беспокоить»', h('span.v', en.dnd ? 'включено' : en.dnd === false ? 'частично' : '…')));
+      const dndOff = DW.state.platform === 'darwin' ? h('a.link', { onclick: () => { DW.settingsFocus = 'mac-focus'; DW.go('settings'); } }, 'нужны ярлыки') : 'частично';
+      if (L.dnd) rows.push(h('div.prot', dot(en.dnd ? 'ok' : en.dnd === false ? 'warn' : ''), '«Не беспокоить»', h('span.v', en.dnd ? 'включено' : en.dnd === false ? dndOff : '…')));
       if (L.hosts) rows.push(h('div.prot', dot(en.hosts ? 'ok' : en.hosts === false ? 'bad' : ''), 'Все браузеры (hosts)', h('span.v', en.hosts ? 'включено' : en.hosts === false ? 'нет прав админа' : '…')));
       if (L.apps !== 'off' || L.onlyBrave) rows.push(h('div.prot', dot(en.apps === 'on' ? 'ok' : 'warn'), 'Контроль программ', h('span.v', en.apps === 'on' ? (L.apps === 'whitelist' ? 'белый список' : 'следит') : 'пауза')));
       const sites = Object.entries(s.attempts.sites), apps = Object.entries(s.attempts.apps);

@@ -91,6 +91,7 @@
 
   window.dw.call('init').then(st => {
     DW.state = st;
+    document.body.classList.toggle('mac', st.platform === 'darwin');
     const q = new URLSearchParams(location.search);
     if (q.get('view')) DW.view = q.get('view');
     DW.entering = true;

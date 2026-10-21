@@ -1,26 +1,13 @@
-// Process watcher: one long-lived PowerShell prints the process list every 1.5s,
-// Node decides what to close.
-const { spawn } = require('child_process');
+// Process watcher: the OS layer delivers the process list every 1.5 s, Node decides what to close.
 const { EventEmitter } = require('events');
-const { ps, encode } = require('./sys');
-
-const LOOP = `
-$ErrorActionPreference = 'SilentlyContinue'
-while ($true) {
-  $p = Get-Process
-  $list = @($p | ForEach-Object { ,@($_.ProcessName, $_.Id, [int]($_.MainWindowHandle -ne 0), $_.MainWindowTitle) })
-  [Console]::Out.WriteLine((ConvertTo-Json -InputObject $list -Compress -Depth 3))
-  [Console]::Out.Flush()
-  Start-Sleep -Milliseconds 1500
-}
-`;
+const sys = require('./sys');
 
 class AppWatcher extends EventEmitter {
   constructor({ dry, log }) {
     super();
     this.dry = dry;
     this.log = log;
-    this.proc = null;
+    this.stopWatch = null;
     this.rules = null;
     this.killedRecently = new Map();
   }
@@ -28,27 +15,12 @@ class AppWatcher extends EventEmitter {
   // rules: { mode: 'block'|'whitelist', block: Set, allow: Set, safe: Set }
   start(rules) {
     this.rules = rules;
-    if (this.proc) return;
-    this.proc = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encode(LOOP)], { windowsHide: true });
-    let buf = '';
-    this.proc.stdout.on('data', d => {
-      buf += d;
-      let i;
-      while ((i = buf.indexOf('\n')) >= 0) {
-        const line = buf.slice(0, i).trim();
-        buf = buf.slice(i + 1);
-        if (line) this.onList(line);
-      }
-    });
-    this.proc.on('exit', () => {
-      this.proc = null;
-      if (this.rules) setTimeout(() => this.rules && this.start(this.rules), 2000);
-    });
+    if (!this.stopWatch) this.stopWatch = sys.watchProcesses(list => this.onList(list));
   }
 
   stop() {
     this.rules = null;
-    if (this.proc) { this.proc.kill(); this.proc = null; }
+    if (this.stopWatch) { this.stopWatch(); this.stopWatch = null; }
   }
 
   // Which running processes the rules would close (also used for the start preview).
@@ -63,10 +35,8 @@ class AppWatcher extends EventEmitter {
     return out;
   }
 
-  onList(line) {
+  onList(list) {
     if (!this.rules) return;
-    let list;
-    try { list = JSON.parse(line); } catch { return; }
     const victims = this.match(list, this.rules);
     const names = new Set();
     for (const v of victims) {
@@ -83,10 +53,7 @@ class AppWatcher extends EventEmitter {
   }
 
   // One-shot snapshot (for previews and the "add running app" picker).
-  async snapshot() {
-    const r = await ps(`$ErrorActionPreference='SilentlyContinue'; ConvertTo-Json -InputObject @(Get-Process | ForEach-Object { ,@($_.ProcessName, $_.Id, [int]($_.MainWindowHandle -ne 0), $_.MainWindowTitle) }) -Compress -Depth 3`);
-    try { return JSON.parse(r.out); } catch { return []; }
-  }
+  snapshot() { return sys.listProcesses(); }
 }
 
 module.exports = { AppWatcher };

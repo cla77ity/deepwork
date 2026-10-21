@@ -46,5 +46,6 @@ const out = path.join(__dirname, '..', 'extension', 'icons');
 fs.mkdirSync(out, { recursive: true });
 for (const s of [16, 32, 48, 128]) fs.writeFileSync(path.join(out, s + '.png'), ring(s));
 fs.mkdirSync(path.join(__dirname, '..', 'build'), { recursive: true });
-fs.writeFileSync(path.join(__dirname, '..', 'build', 'icon.png'), ring(256));
+// 1024 px: electron-builder needs at least 512 for the macOS .icns
+fs.writeFileSync(path.join(__dirname, '..', 'build', 'icon.png'), ring(1024));
 console.log('icons written');

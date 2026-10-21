@@ -31,11 +31,13 @@ const LEVELS = {
   },
 };
 
+const MAC = process.platform === 'darwin';
+
 // What each level flag means — drives the level editor in Settings.
 const LEVEL_FIELDS = [
-  { key: 'dnd', label: 'Windows «Не беспокоить»', kind: 'bool' },
+  { key: 'dnd', label: 'Режим «Не беспокоить»', kind: 'bool' },
   { key: 'sites', label: 'Сайты', kind: 'select', options: [['off', 'не трогать'], ['warn', 'предупреждать'], ['block', 'блокировать'], ['whitelist', 'только белый список']] },
-  { key: 'hosts', label: 'Блок через hosts (все браузеры, UAC)', kind: 'bool' },
+  { key: 'hosts', label: MAC ? 'Блок через hosts (все браузеры, пароль)' : 'Блок через hosts (все браузеры, UAC)', kind: 'bool' },
   { key: 'apps', label: 'Программы', kind: 'select', options: [['off', 'не трогать'], ['block', 'закрывать из списка'], ['whitelist', 'только белый список']] },
   { key: 'onlyBrave', label: 'Закрывать другие браузеры', kind: 'bool' },
   { key: 'youtube', label: 'Чистка YouTube', kind: 'bool' },
@@ -67,7 +69,13 @@ const SITE_CATS = [
 
 const SITE_ALLOW = ['github.com', 'stackoverflow.com', 'developer.mozilla.org', 'google.com', 'claude.ai', 'chatgpt.com', 'npmjs.com', 'figma.com', 'notion.so', 'localhost', '127.0.0.1'];
 
-const APP_CATS = [
+// App names are lowercase process names: Windows — the .exe name, macOS — the name shown in the Dock.
+const APP_CATS = MAC ? [
+  { id: 'games', name: 'Игры и лаунчеры', on: true, names: ['steam', 'steam_osx', 'epic games launcher', 'riot client', 'league of legends', 'battle.net'] },
+  { id: 'messengers', name: 'Мессенджеры', on: true, names: ['telegram', 'discord', 'whatsapp', 'viber', 'slack', 'messages'] },
+  { id: 'media', name: 'Музыка и видео', on: false, names: ['spotify', 'music', 'tv', 'vlc'] },
+  { id: 'custom', name: 'Мои программы', on: true, names: [] },
+] : [
   { id: 'games', name: 'Игры и лаунчеры', on: true, names: ['steam', 'steamwebhelper', 'epicgameslauncher', 'riotclientservices', 'leagueclient', 'battle.net', 'origin', 'eadesktop', 'ubisoftconnect'] },
   { id: 'messengers', name: 'Мессенджеры', on: true, names: ['telegram', 'discord', 'whatsapp', 'viber', 'slack'] },
   { id: 'media', name: 'Музыка и видео', on: false, names: ['spotify', 'vlc', 'yandexmusic'] },
@@ -75,17 +83,26 @@ const APP_CATS = [
 ];
 
 // Closed when level.onlyBrave is on (prevents dodging the Brave extension).
-const OTHER_BROWSERS = ['chrome', 'msedge', 'firefox', 'opera', 'opera_gx', 'browser', 'vivaldi', 'yandex', 'comet', 'arc', 'chromium', 'thorium', 'waterfox', 'librewolf'];
+const OTHER_BROWSERS = MAC
+  ? ['google chrome', 'safari', 'firefox', 'microsoft edge', 'opera', 'opera gx', 'arc', 'comet', 'vivaldi', 'yandex', 'chromium', 'orion', 'zen']
+  : ['chrome', 'msedge', 'firefox', 'opera', 'opera_gx', 'browser', 'vivaldi', 'yandex', 'comet', 'arc', 'chromium', 'thorium', 'waterfox', 'librewolf'];
 
-const APP_ALLOW = ['code', 'cursor', 'idea64', 'pycharm64', 'brave', 'figma', 'notepad', 'notepad++', 'windowsterminal', 'powershell', 'pwsh', 'cmd', 'claude', 'obsidian', 'notion'];
+const APP_ALLOW = MAC
+  ? ['code', 'cursor', 'brave browser', 'figma', 'terminal', 'iterm2', 'warp', 'notes', 'obsidian', 'claude', 'notion', 'xcode', 'preview']
+  : ['code', 'cursor', 'idea64', 'pycharm64', 'brave', 'figma', 'notepad', 'notepad++', 'windowsterminal', 'powershell', 'pwsh', 'cmd', 'claude', 'obsidian', 'notion'];
 
 // Never killed, whatever the lists say.
-const APP_SAFE = ['explorer', 'dwm', 'electron', 'deepwork', 'applicationframehost', 'systemsettings', 'textinputhost',
-  'shellexperiencehost', 'startmenuexperiencehost', 'searchhost', 'lockapp', 'taskmgr', 'dllhost', 'rundll32', 'mmc',
-  'consent', 'credentialuihost', 'openwith', 'pickerhost', 'shellhost', 'sihost', 'ctfmon', 'conhost', 'csrss',
-  'winlogon', 'svchost', 'runtimebroker', 'securityhealthsystray', 'msedgewebview2', 'nvidia share', 'radeonsoftware',
+const APP_SAFE = [
+  ...(MAC ? ['finder', 'dock', 'systemuiserver', 'loginwindow', 'windowserver', 'controlcenter', 'notificationcenter', 'spotlight',
+    'system settings', 'system preferences', 'activity monitor', 'universalcontrol', 'screencaptureui', 'siri', 'wallpaper',
+    'terminal', 'iterm2', 'zsh', 'python3']
+    : ['explorer', 'dwm', 'applicationframehost', 'systemsettings', 'textinputhost',
+      'shellexperiencehost', 'startmenuexperiencehost', 'searchhost', 'lockapp', 'taskmgr', 'dllhost', 'rundll32', 'mmc',
+      'consent', 'credentialuihost', 'openwith', 'pickerhost', 'shellhost', 'sihost', 'ctfmon', 'conhost', 'csrss',
+      'winlogon', 'svchost', 'runtimebroker', 'securityhealthsystray', 'msedgewebview2', 'nvidia share', 'radeonsoftware', 'openconsole']),
+  'electron', 'deepwork',
   // dev runtimes: console windows of scripts/bots must survive whitelist mode
-  'python', 'pythonw', 'py', 'node', 'java', 'javaw', 'git', 'bash', 'wsl', 'ssh', 'openconsole'];
+  'python', 'pythonw', 'py', 'node', 'java', 'javaw', 'git', 'bash', 'wsl', 'ssh'];
 
 const EXIT_PHRASE = 'я сдаюсь и теряю фокус';
 
@@ -124,4 +141,4 @@ function levelConfig(settings, n) {
   return { ...base, ...o, exit: { ...base.exit, ...(o.exit || {}) }, n: Number(n) };
 }
 
-module.exports = { LEVELS, LEVEL_FIELDS, EXIT_TYPES, OTHER_BROWSERS, APP_SAFE, EXIT_PHRASE, defaultSettings, levelConfig };
+module.exports = { MAC, LEVELS, LEVEL_FIELDS, EXIT_TYPES, OTHER_BROWSERS, APP_SAFE, EXIT_PHRASE, defaultSettings, levelConfig };

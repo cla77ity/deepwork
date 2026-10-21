@@ -1,7 +1,6 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, screen, shell, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { spawn } = require('child_process');
 
 const { Store } = require('./core/store');
 const { Session } = require('./core/session');
@@ -9,6 +8,8 @@ const { Enforcer, siteLists } = require('./core/enforcer');
 const { AppWatcher } = require('./core/apps');
 const { Bridge } = require('./core/bridge');
 const D = require('./core/defaults');
+const sys = require('./core/sys');
+const MAC = process.platform === 'darwin';
 
 // ---- CLI flags: --dry (log instead of acting), --profile=<dir>, --shot=<png> --view=<id> --wait=<s> --js=<file> --extras, --hidden, --port=<n>
 const arg = name => {
@@ -58,8 +59,8 @@ const lvlOf = s => D.levelConfig(S(), s ? s.level : S().level);
 const presetOf = id => S().presets.find(p => p.id === id) || null;
 const hostOf = u => { try { return new URL(normUrl(u)).hostname.replace(/^www\./, ''); } catch { return ''; } };
 const normUrl = u => /^[a-z]+:\/\//i.test(u) ? u : 'https://' + u;
-// process names the preset launches (only .exe targets are known up front)
-const presetAllow = p => p ? p.apps.map(a => path.basename(a.path || '').toLowerCase()).filter(n => n.endsWith('.exe')).map(n => n.slice(0, -4)) : [];
+// process names the preset launches (known for .exe on Windows and for .app bundles on macOS)
+const presetAllow = p => p ? p.apps.map(a => a.proc || (/\.exe$/i.test(a.path || '') ? path.basename(a.path).slice(0, -4).toLowerCase() : null)).filter(Boolean) : [];
 
 function extState() {
   const s = session.state;
@@ -100,8 +101,10 @@ function snapshot() {
     ...dataPayload(),
     session: session.state, levels: [1, 2, 3, 4].map(n => D.levelConfig(S(), n)),
     defaults: { levels: D.LEVELS, fields: D.LEVEL_FIELDS, exitTypes: D.EXIT_TYPES, phrase: D.EXIT_PHRASE },
-    ext: extStatus, enforce: enforcer.status, dry: DRY,
-    extPath: path.join(__dirname, 'extension'), userDir,
+    ext: extStatus, enforce: enforcer.status, dry: DRY, platform: process.platform,
+    shortcuts: MAC ? [sys.SHORTCUT_ON, sys.SHORTCUT_OFF] : null,
+    // packaged builds ship the extension next to the app (extraResources), unpacked so Brave can load it
+    extPath: app.isPackaged ? path.join(process.resourcesPath, 'extension') : path.join(__dirname, 'extension'), userDir,
   };
 }
 
@@ -129,21 +132,41 @@ function ringIcon(size, frac, active) {
   return nativeImage.createFromBitmap(buf, { width: size, height: size });
 }
 
+// macOS menu bar wants a template image (black + alpha, recolored by the system)
+function trayIcon(frac, active) {
+  if (!MAC) return ringIcon(32, frac, active);
+  const size = 36, buf = Buffer.alloc(size * size * 4);
+  const c = size / 2, rO = size * 0.42, rI = size * 0.28;
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const dx = x + 0.5 - c, dy = y + 0.5 - c, d = Math.hypot(dx, dy);
+    const a = Math.min(1, Math.max(0, rO - d + 0.5)) * Math.min(1, Math.max(0, d - rI + 0.5));
+    if (a <= 0) continue;
+    const ang = ((Math.atan2(dx, -dy) + 2 * Math.PI) % (2 * Math.PI)) / (2 * Math.PI);
+    buf[(y * size + x) * 4 + 3] = Math.round(a * (ang <= frac ? 255 : 70));
+  }
+  const img = nativeImage.createFromBitmap(buf, { width: size, height: size, scaleFactor: 2 });
+  img.setTemplateImage(true);
+  return img;
+}
+
 const fmt = ms => { const t = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
 const PHASE = { focus: 'Фокус', short: 'Перерыв', long: 'Длинный перерыв' };
 
 function updateTray() {
   if (!tray) return;
   const s = session.state;
-  if (!s) { tray.setImage(ringIcon(32, 1, false)); tray.setToolTip('Deepwork — не в фокусе'); return; }
+  if (!s) { tray.setImage(trayIcon(1, false)); tray.setToolTip('Deepwork — не в фокусе'); if (MAC) tray.setTitle(''); return; }
   const now = s.pausedAt || Date.now();
   if (s.phaseEnd) {
     const total = s.phaseEnd - s.phaseStart;
-    tray.setImage(ringIcon(32, Math.max(0, (s.phaseEnd - now) / total), s.phase === 'focus'));
+    tray.setImage(trayIcon(Math.max(0, (s.phaseEnd - now) / total), s.phase === 'focus'));
     tray.setToolTip(`Deepwork — ${PHASE[s.phase]} ${fmt(s.phaseEnd - now)}${s.status === 'paused' ? ' (пауза)' : ''}`);
+    // the menu bar can show text next to the icon: minutes left
+    if (MAC) tray.setTitle(' ' + Math.ceil(Math.max(0, s.phaseEnd - now) / 60000) + 'м', { fontType: 'monospacedDigit' });
   } else {
-    tray.setImage(ringIcon(32, 1, true));
+    tray.setImage(trayIcon(1, true));
     tray.setToolTip(`Deepwork — поток ${fmt(now - s.phaseStart)}`);
+    if (MAC) tray.setTitle(' ' + Math.floor((now - s.phaseStart) / 60000) + 'м', { fontType: 'monospacedDigit' });
   }
 }
 
@@ -179,7 +202,8 @@ function showNotice(title, body, kind = 'info', ms = 5200) {
     return;
   }
   const wa = screen.getPrimaryDisplay().workArea;
-  notice.setPosition(wa.x + wa.width - 396, wa.y + wa.height - 120);
+  // where each OS shows its own notifications: top right on macOS, bottom right on Windows
+  notice.setPosition(wa.x + wa.width - 396, MAC ? wa.y + 10 : wa.y + wa.height - 120);
   notice.webContents.send('notice', { title, body, kind, sound: S().sound, ms });
   notice.showInactive();
   clearTimeout(showNotice.t);
@@ -226,15 +250,6 @@ function setWidget(patch) {
 }
 
 // ---- work presets: open apps and a browser window with the work tabs ----------------
-function findBrave() {
-  const roots = [process.env.ProgramFiles, process.env['ProgramFiles(x86)'], process.env.LOCALAPPDATA].filter(Boolean);
-  for (const r of roots) {
-    const p = path.join(r, 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe');
-    if (fs.existsSync(p)) return p;
-  }
-  return null;
-}
-
 function launchPreset(p) {
   if (!p) return;
   for (const a of p.apps) {
@@ -245,9 +260,7 @@ function launchPreset(p) {
   const urls = p.urls.map(normUrl);
   if (!urls.length) return;
   if (DRY) return log('dry: open tabs', urls.join(' '));
-  const brave = findBrave();
-  if (brave) spawn(brave, ['--new-window', ...urls], { detached: true, stdio: 'ignore' }).unref();
-  else urls.forEach(u => shell.openExternal(u));
+  if (!sys.openBrave(urls)) urls.forEach(u => shell.openExternal(u));
 }
 
 // ---- session wiring ------------------------------------------------------------
@@ -416,12 +429,11 @@ ipcMain.handle('journal:note', (_, date, note) => {
 
 ipcMain.handle('presets:pickApp', async () => {
   const r = await dialog.showOpenDialog(win, {
-    title: 'Выбери программу', properties: ['openFile'],
-    filters: [{ name: 'Программы и ярлыки', extensions: ['exe', 'lnk', 'bat', 'cmd', 'url'] }, { name: 'Все файлы', extensions: ['*'] }],
+    title: 'Выбери программу', properties: ['openFile'], defaultPath: MAC ? '/Applications' : undefined,
+    filters: sys.APP_FILTERS,
   });
   if (r.canceled || !r.filePaths[0]) return null;
-  const p = r.filePaths[0];
-  return { path: p, name: path.basename(p).replace(/\.(exe|lnk|bat|cmd|url)$/i, '') };
+  return sys.appInfo(r.filePaths[0]);
 });
 ipcMain.handle('presets:launch', (_, id) => { launchPreset(presetOf(id)); return true; });
 
@@ -440,6 +452,7 @@ ipcMain.handle('widget:hide', () => setWidget({ enabled: false }));
 
 function setLogin(on) {
   if (DRY) return;
+  if (MAC) return app.setLoginItemSettings({ openAtLogin: on, openAsHidden: true });
   const args = app.isPackaged ? ['--hidden'] : [path.resolve(__dirname), '--hidden'];
   app.setLoginItemSettings({ openAtLogin: on, path: process.execPath, args });
 }
@@ -448,7 +461,9 @@ function setLogin(on) {
 function createWindow(hidden) {
   win = new BrowserWindow({
     width: 1280, height: 820, minWidth: 980, minHeight: 640,
-    frame: false, backgroundColor: '#050505', show: false, title: 'Deepwork',
+    // macOS keeps its traffic lights over our own title bar; Windows gets custom buttons
+    ...(MAC ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 18, y: 15 } } : { frame: false }),
+    backgroundColor: '#050505', show: false, title: 'Deepwork',
     icon: ringIcon(256, 1, true),
     // shot mode renders offscreen: a hidden window stops repainting after the first frame
     webPreferences: { preload: path.join(__dirname, 'preload.js'), offscreen: !!SHOT },
@@ -492,11 +507,13 @@ async function shotExtras() {
 }
 
 app.on('second-instance', showWin);
+// macOS: clicking the Dock icon brings the window back
+app.on('activate', showWin);
 
 app.whenReady().then(() => {
   if (!SHOT) {
     bridge.start();
-    tray = new Tray(ringIcon(32, 1, false));
+    tray = new Tray(trayIcon(1, false));
     tray.on('click', showWin);
     tray.setContextMenu(trayMenu());
     setInterval(updateTray, 5000);
@@ -513,6 +530,13 @@ app.whenReady().then(() => {
 app.on('before-quit', e => {
   if (SHOT || app.cleanedUp) return;
   e.preventDefault();
+  // Cmd+Q / Dock "Quit" must not bypass a locked session (the tray route checks it in tryQuit)
+  const s = session.state;
+  if (!quitting && s && lvlOf(s).lockSettings) {
+    showWin();
+    showNotice('Нельзя выйти', 'Сначала заверши сессию в окне Deepwork', 'warn');
+    return;
+  }
   quitting = true;
   // session state is kept on disk, so a quit mid-session resumes on next launch;
   // the system effects are undone now
