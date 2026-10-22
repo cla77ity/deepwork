@@ -4,7 +4,7 @@ const { execFile } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
-const REPO = 'pravorov333-pixel/deepwork';
+const REPO = 'cla77ity/deepwork';
 
 const run = (cmd, args, cwd) => new Promise(resolve => execFile(cmd, args, { cwd, windowsHide: true, timeout: 180000, shell: process.platform === 'win32' && cmd === 'npm' },
   (err, stdout, stderr) => resolve({ ok: !err, out: String(stdout || '').trim(), err: String(stderr || (err && err.message) || '').trim() })));

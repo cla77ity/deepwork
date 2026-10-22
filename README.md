@@ -80,7 +80,7 @@
 Нужен [Node.js](https://nodejs.org) 20 или новее.
 
 ```bash
-git clone https://github.com/pravorov333-pixel/deepwork
+git clone https://github.com/cla77ity/deepwork
 cd deepwork
 npm install
 npm start
