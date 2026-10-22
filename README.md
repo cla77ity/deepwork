@@ -68,6 +68,17 @@ npm install
 npm start
 ```
 
+### Ярлык для запуска
+
+```bash
+npm run shortcut
+```
+
+- **Windows** — ярлык Deepwork с иконкой на рабочем столе и в меню «Пуск» (ищется через Win).
+- **macOS** — `Deepwork.app` в `~/Applications`, виден в Launchpad и Spotlight.
+
+То же самое делает кнопка в «Настройках» → «Общие». Если перенёс папку проекта, создай ярлык заново.
+
 ### Расширение для Brave
 
 1. Открой `brave://extensions` и включи **Режим разработчика**.

@@ -48,4 +48,21 @@ for (const s of [16, 32, 48, 128]) fs.writeFileSync(path.join(out, s + '.png'), 
 fs.mkdirSync(path.join(__dirname, '..', 'build'), { recursive: true });
 // 1024 px: electron-builder needs at least 512 for the macOS .icns
 fs.writeFileSync(path.join(__dirname, '..', 'build', 'icon.png'), ring(1024));
+
+// Windows .ico for shortcuts: PNG-compressed entries (supported since Vista)
+function ico(sizes) {
+  const pngs = sizes.map(ring);
+  const head = Buffer.alloc(6 + 16 * sizes.length);
+  head.writeUInt16LE(0, 0); head.writeUInt16LE(1, 2); head.writeUInt16LE(sizes.length, 4);
+  let offset = head.length;
+  sizes.forEach((s, i) => {
+    const e = 6 + 16 * i;
+    head[e] = s >= 256 ? 0 : s; head[e + 1] = s >= 256 ? 0 : s; // 0 means 256
+    head.writeUInt16LE(1, e + 4); head.writeUInt16LE(32, e + 6);
+    head.writeUInt32LE(pngs[i].length, e + 8); head.writeUInt32LE(offset, e + 12);
+    offset += pngs[i].length;
+  });
+  return Buffer.concat([head, ...pngs]);
+}
+fs.writeFileSync(path.join(__dirname, '..', 'build', 'icon.ico'), ico([16, 24, 32, 48, 64, 256]));
 console.log('icons written');

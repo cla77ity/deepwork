@@ -1,6 +1,8 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, screen, shell, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
+const { execFile } = require('child_process');
 
 const { Store } = require('./core/store');
 const { Session } = require('./core/session');
@@ -11,7 +13,8 @@ const D = require('./core/defaults');
 const sys = require('./core/sys');
 const MAC = process.platform === 'darwin';
 
-// ---- CLI flags: --dry (log instead of acting), --profile=<dir>, --shot=<png> --view=<id> --wait=<s> --js=<file> --extras, --hidden, --port=<n>
+// ---- CLI flags: --dry (log instead of acting), --profile=<dir>, --shot=<png> --view=<id> --wait=<s> --js=<file> --extras,
+// --hidden, --port=<n>, --make-shortcut (create desktop/menu shortcuts and exit)
 const arg = name => {
   const a = process.argv.find(x => x === `--${name}` || x.startsWith(`--${name}=`));
   return a == null ? null : (a.includes('=') ? a.slice(a.indexOf('=') + 1) : true);
@@ -23,7 +26,9 @@ app.setName('Deepwork');
 app.commandLine.appendSwitch('lang', 'ru');
 if (arg('profile')) app.setPath('userData', path.resolve(String(arg('profile'))));
 
-if (!SHOT && !app.requestSingleInstanceLock()) { app.quit(); }
+const MAKE_SHORTCUT = !!arg('make-shortcut');
+if (!SHOT && !MAKE_SHORTCUT && !app.requestSingleInstanceLock()) { app.quit(); }
+if (process.platform === 'win32') app.setAppUserModelId('com.deepwork.app');
 
 const log = (...a) => console.log('[deepwork]', ...a);
 const userDir = app.getPath('userData');
@@ -449,6 +454,39 @@ ipcMain.handle('win:min', () => win && win.minimize());
 ipcMain.handle('win:close', () => win && win.close());
 ipcMain.handle('win:show', () => showWin());
 ipcMain.handle('widget:hide', () => setWidget({ enabled: false }));
+ipcMain.handle('shortcut:create', () => makeShortcuts());
+
+// ---- launch shortcuts ------------------------------------------------------------
+// Windows: Desktop + Start menu .lnk to Electron with this folder (or to the packaged exe).
+// macOS: a tiny ~/Applications/Deepwork.app made with osacompile, so it shows in Launchpad and Spotlight.
+async function makeShortcuts() {
+  const dir = __dirname;
+  if (process.platform === 'win32') {
+    const opts = {
+      target: process.execPath, args: app.isPackaged ? '' : `"${dir}"`, cwd: dir,
+      icon: path.join(dir, 'build', 'icon.ico'), iconIndex: 0,
+      description: 'Deepwork — режим полного фокуса', appUserModelId: 'com.deepwork.app',
+    };
+    const places = [
+      path.join(app.getPath('desktop'), 'Deepwork.lnk'),
+      path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Deepwork.lnk'),
+    ];
+    return places.filter(p => shell.writeShortcutLink(p, 'create', opts));
+  }
+  if (process.platform === 'darwin') {
+    const target = path.join(os.homedir(), 'Applications', 'Deepwork.app');
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    const q = s => '"' + s.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+    const cmd = app.isPackaged ? `open -a ${q(process.execPath)}` : `cd ${q(dir)} && nohup ./node_modules/.bin/electron . > /dev/null 2>&1 &`;
+    const run = (c, a) => new Promise(res => execFile(c, a, err => res(!err)));
+    if (!await run('osacompile', ['-o', target, '-e', `do shell script ${q(cmd)}`])) return [];
+    // our ring as the bundle icon (sips converts the PNG to .icns)
+    await run('sips', ['-s', 'format', 'icns', path.join(dir, 'build', 'icon.png'), '--out', path.join(target, 'Contents', 'Resources', 'applet.icns')]);
+    await run('touch', [target]);
+    return [target];
+  }
+  return [];
+}
 
 function setLogin(on) {
   if (DRY) return;
@@ -510,7 +548,12 @@ app.on('second-instance', showWin);
 // macOS: clicking the Dock icon brings the window back
 app.on('activate', showWin);
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  if (MAKE_SHORTCUT) {
+    const made = await makeShortcuts();
+    console.log(made.length ? 'Ярлыки созданы:\n' + made.join('\n') : 'Не удалось создать ярлык');
+    return app.exit(made.length ? 0 : 1);
+  }
   if (!SHOT) {
     bridge.start();
     tray = new Tray(trayIcon(1, false));
@@ -528,7 +571,7 @@ app.whenReady().then(() => {
 });
 
 app.on('before-quit', e => {
-  if (SHOT || app.cleanedUp) return;
+  if (SHOT || MAKE_SHORTCUT || app.cleanedUp) return;
   e.preventDefault();
   // Cmd+Q / Dock "Quit" must not bypass a locked session (the tray route checks it in tryQuit)
   const s = session.state;

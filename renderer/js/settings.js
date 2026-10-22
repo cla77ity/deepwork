@@ -200,6 +200,12 @@
       h('div.card.col', { style: { gap: '14px' } },
         gen('alwaysClean', 'Чистить YouTube и кликбейт всегда', 'даже вне сессии, без блокировки сайтов'),
         gen('launchAtLogin', `Запускать вместе с ${DW.os().name}`, `сразу в ${DW.os().tray}, без окна`),
+        h('div.row', h('span.muted', 'Ярлык'), h('button.btn.sm', {
+          onclick: async () => {
+            const made = await window.dw.call('shortcut:create');
+            DW.toast(made && made.length ? (DW.state.platform === 'darwin' ? 'Deepwork добавлен в Программы — ищи в Launchpad и Spotlight' : 'Ярлык создан на рабочем столе и в меню «Пуск»') : 'Не получилось создать ярлык', !(made && made.length));
+          },
+        }, DW.state.platform === 'darwin' ? 'Добавить в Программы' : 'Создать на рабочем столе и в «Пуске»')),
         h('div.row', h('span.muted', 'Данные'), h('code', DW.state.userDir), h('button.btn.sm', { onclick: () => window.dw.call('open:path', DW.state.userDir) }, 'Открыть')))));
 
     if (ext.connected) root.append(extSection);

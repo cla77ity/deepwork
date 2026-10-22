@@ -9,6 +9,7 @@
   "scripts": {
     "start": "electron .",
     "dry": "electron . --dry",
+    "shortcut": "electron . --make-shortcut",
     "dist:mac": "npx --yes electron-builder@25 --mac",
     "dist:win": "npx --yes electron-builder@25 --win"
   },
