@@ -6,7 +6,22 @@ try { host = new URL(target).hostname.replace(/^www\./, ''); } catch { }
 
 const $ = id => document.getElementById(id);
 $('host').textContent = host || 'Этот сайт';
-if (mode === 'whitelist') $('why').textContent = 'не в белом списке уровня «Монах»';
+if (mode === 'whitelist') $('why').textContent = 'не в белом списке';
+const matches = (h, d) => h === d || h.endsWith('.' + d);
+
+// daily limit page: shown in or out of a session, stays until midnight or until the limit is raised
+if (mode === 'limit') {
+  document.querySelector('h1').textContent = 'Лимит на сегодня исчерпан';
+  document.querySelector('.ring').style.display = 'none';
+  chrome.storage.local.get(['limitHit', 'limitInfo'], ({ limitHit = [], limitInfo = {} }) => {
+    const d = limitHit.find(x => matches(host, x));
+    if (!d) return location.replace(target);
+    $('why').textContent = `— ${limitInfo[d] || ''} мин в день уже потрачены. Завтра лимит обнулится.`;
+  });
+  chrome.storage.onChanged.addListener(ch => {
+    if (ch.limitHit && !(ch.limitHit.newValue || []).some(x => matches(host, x))) location.replace(target);
+  });
+}
 
 const TIPS = [
   'Желание отвлечься — это волна. Подожди 60 секунд, она пройдёт.',
@@ -17,7 +32,7 @@ const TIPS = [
 ];
 $('tip').textContent = TIPS[Math.floor(Math.random() * TIPS.length)];
 
-chrome.runtime.sendMessage({ type: 'attempt', domain: host });
+if (mode !== 'limit') chrome.runtime.sendMessage({ type: 'attempt', domain: host });
 
 const effective = s => !!(s && s.active && s.enforce && Date.now() < s.expires);
 let dw = null;
@@ -31,6 +46,7 @@ function tick() {
 }
 function load(s) {
   dw = s;
+  if (mode === 'limit') return;
   // focus is over (or relaxed for a break): let the page through
   if (!effective(dw) && /^https?:/.test(target)) return location.replace(target);
   $('goalBox').hidden = !(dw && dw.goal);
@@ -39,7 +55,7 @@ function load(s) {
 }
 chrome.storage.local.get('dw', r => load(r.dw));
 chrome.storage.onChanged.addListener(ch => { if (ch.dw) load(ch.dw.newValue); });
-setInterval(() => { tick(); if (dw && !effective(dw)) load(dw); }, 1000);
+setInterval(() => { if (mode === 'limit') return; tick(); if (dw && !effective(dw)) load(dw); }, 1000);
 
 $('back').onclick = () => {
   if (history.length > 1) history.back();

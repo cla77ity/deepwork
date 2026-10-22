@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Deepwork",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Focus companion for the Deepwork desktop app: blocks distracting sites, cleans YouTube, hides clickbait and social feeds.",
-  "permissions": ["declarativeNetRequest", "storage", "alarms", "tabs", "contentSettings"],
+  "permissions": ["declarativeNetRequest", "storage", "alarms", "tabs", "contentSettings", "idle"],
   "host_permissions": ["<all_urls>"],
   "background": { "service_worker": "background.js" },
   "content_scripts": [

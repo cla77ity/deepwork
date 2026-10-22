@@ -65,4 +65,20 @@ function ico(sizes) {
   return Buffer.concat([head, ...pngs]);
 }
 fs.writeFileSync(path.join(__dirname, '..', 'build', 'icon.ico'), ico([16, 24, 32, 48, 64, 256]));
+
+// phone web app (Add to Home Screen): solid background, iOS ignores transparency
+function solid(size) {
+  const rgba = Buffer.alloc(size * size * 4);
+  const c = size / 2, rO = size * 0.30, rI = size * 0.19;
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const d = Math.hypot(x + 0.5 - c, y + 0.5 - c);
+    const a = Math.min(1, Math.max(0, rO - d + 0.5)) * Math.min(1, Math.max(0, d - rI + 0.5));
+    const i = (y * size + x) * 4;
+    rgba[i] = Math.round(5 + a * (0xe8 - 5)); rgba[i + 1] = Math.round(5 + a * (0xec - 5)); rgba[i + 2] = Math.round(5 + a * (0xff - 5)); rgba[i + 3] = 255;
+  }
+  return png(size, rgba);
+}
+const phoneDir = path.join(__dirname, '..', 'renderer', 'phone');
+fs.mkdirSync(phoneDir, { recursive: true });
+for (const s of [180, 192, 512]) fs.writeFileSync(path.join(phoneDir, `icon-${s}.png`), solid(s));
 console.log('icons written');

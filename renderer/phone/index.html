@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#050505">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Deepwork">
+  <link rel="manifest" href="/phone/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/phone/icon-180.png">
+  <title>Deepwork</title>
+  <style>
+    @font-face { font-family: "Inter"; font-weight: 100 900; src: url(/fonts/inter-cyrillic-wght-normal.woff2) format("woff2-variations"); unicode-range: U+0400-045F, U+0490-0491, U+2116; }
+    @font-face { font-family: "Inter"; font-weight: 100 900; src: url(/fonts/inter-latin-wght-normal.woff2) format("woff2-variations"); unicode-range: U+0000-00FF, U+2000-206F; }
+    :root { --bg: #050505; --panel: #0e0e10; --line: rgba(255,255,255,.08); --text: #f2f3f5; --muted: #8d9099; --dim: #55585f; --accent: #e8ecff; --glow: rgba(180,195,255,.3); }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 "Inter", -apple-system, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    body { padding: calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 24px); max-width: 520px; margin: 0 auto; }
+    h1 { font-size: 22px; letter-spacing: -.02em; margin: 6px 0 16px; display: flex; align-items: center; gap: 10px; }
+    .brand { width: 16px; height: 16px; border-radius: 50%; border: 3px solid var(--accent); box-shadow: 0 0 12px var(--glow); }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 16px; margin-bottom: 12px; animation: rise .4s cubic-bezier(.2,.8,.2,1) both; }
+    .card h3 { margin: 0 0 10px; font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+    .timer { text-align: center; padding: 22px 16px; }
+    .ring { width: 210px; height: 210px; margin: 0 auto; position: relative; }
+    .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .ring .c { position: absolute; inset: 0; display: grid; place-content: center; gap: 2px; }
+    .ph { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+    .big { font: 200 52px/1 "Inter", sans-serif; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+    .goal { margin-top: 12px; font-weight: 500; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
+    button { font: inherit; border: 1px solid var(--line); background: #151517; color: var(--text); padding: 11px 16px; border-radius: 13px; font-weight: 500; }
+    button:active { transform: scale(.97); }
+    button.primary { background: var(--accent); color: #07080c; border-color: transparent; font-weight: 600; box-shadow: 0 6px 24px rgba(180,195,255,.15); }
+    .stats { display: flex; justify-content: space-between; gap: 8px; }
+    .stats div { flex: 1; text-align: center; }
+    .stats b { display: block; font-size: 20px; letter-spacing: -.02em; }
+    .stats span { color: var(--muted); font-size: 12px; }
+    .item { display: flex; align-items: center; gap: 12px; padding: 10px 2px; border-bottom: 1px solid var(--line); }
+    .item:last-child { border-bottom: 0; }
+    .check { width: 22px; height: 22px; border-radius: 7px; border: 1.5px solid rgba(255,255,255,.25); flex: none; display: grid; place-items: center; }
+    .done .check { background: var(--accent); border-color: var(--accent); }
+    .done .check::after { content: ""; width: 9px; height: 5px; border: 2px solid #07080c; border-top: 0; border-right: 0; transform: rotate(-45deg) translate(1px,-1px); }
+    .done .t { color: var(--dim); text-decoration: line-through; }
+    .t { flex: 1; }
+    .time { color: var(--dim); font-size: 13px; }
+    input, textarea { width: 100%; font: inherit; color: inherit; background: #000; border: 1px solid var(--line); border-radius: 12px; padding: 12px; outline: none; }
+    input:focus, textarea:focus { border-color: rgba(232,236,255,.5); }
+    textarea { min-height: 70px; resize: vertical; margin-top: 8px; }
+    .scale { display: flex; gap: 6px; margin-bottom: 12px; }
+    .scale button { flex: 1; padding: 9px 2px; font-size: 12px; color: var(--muted); }
+    .scale button.on { color: var(--text); border-color: rgba(232,236,255,.5); box-shadow: 0 0 14px rgba(180,195,255,.15); }
+    .lbl { font-size: 12px; color: var(--muted); margin: 6px 0 6px; }
+    .muted { color: var(--muted); }
+    .err { color: #e5676b; text-align: center; min-height: 20px; margin-top: 8px; }
+    .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 20px); transform: translateX(-50%); background: #18181b; border: 1px solid var(--line); padding: 10px 16px; border-radius: 12px; opacity: 0; transition: opacity .25s; pointer-events: none; }
+    .toast.on { opacity: 1; }
+    .hidden { display: none !important; }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+  </style>
+</head>
+<body>
+  <h1><span class="brand"></span>Deepwork</h1>
+
+  <div id="login" class="card hidden">
+    <h3>Вход</h3>
+    <p class="muted">PIN показан в Deepwork на компьютере: Настройки → Телефон.</p>
+    <input id="pin" inputmode="numeric" maxlength="6" placeholder="PIN" autocomplete="one-time-code">
+    <div class="row"><button class="primary" id="go">Войти</button></div>
+    <div class="err" id="lerr"></div>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="card timer">
+      <div class="ring">
+        <svg viewBox="0 0 210 210"><circle cx="105" cy="105" r="94" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="8"/><circle id="arc" cx="105" cy="105" r="94" fill="none" stroke="#e8ecff" stroke-width="8" stroke-linecap="round" stroke-dasharray="590.6" stroke-dashoffset="590.6" style="filter: drop-shadow(0 0 6px rgba(180,195,255,.45)); transition: stroke-dashoffset .9s linear"/></svg>
+        <div class="c"><div class="ph" id="ph">Не в фокусе</div><div class="big" id="big">—</div></div>
+      </div>
+      <div class="goal" id="goal"></div>
+      <div class="row" id="ctrls"></div>
+    </div>
+
+    <div class="card"><div class="stats">
+      <div><b id="sf">0</b><span>сегодня</span></div>
+      <div><b id="sg">—</b><span>норма</span></div>
+      <div><b id="ss">0</b><span>серия, дн.</span></div>
+    </div></div>
+
+    <div class="card"><h3>Мысль на парковку</h3>
+      <input id="park" placeholder="Запиши и вернись к делу" maxlength="300" enterkeyhint="send">
+    </div>
+
+    <div class="card"><h3>Сегодня</h3><div id="list"></div>
+      <input id="add" placeholder="Новая задача на сегодня" maxlength="300" enterkeyhint="done" style="margin-top:10px">
+    </div>
+
+    <div class="card"><h3>Журнал</h3>
+      <div class="lbl">Настроение</div><div class="scale" id="mood"></div>
+      <div class="lbl">Энергия</div><div class="scale" id="energy"></div>
+      <div class="lbl">Что получилось</div><textarea id="wins"></textarea>
+      <div class="lbl">Что мешало</div><textarea id="blockers"></textarea>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    const MOOD = ['ужасно', 'плохо', 'норм', 'хорошо', 'отлично'], ENERGY = ['ноль', 'мало', 'средне', 'много', 'пик'];
+    const PH = { focus: 'Фокус', short: 'Перерыв', long: 'Длинный перерыв' };
+    let st = null, offset = 0;
+
+    const toast = t => { $('toast').textContent = t; $('toast').classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => $('toast').classList.remove('on'), 1800); };
+    async function api(path, body) {
+      const r = await fetch('/api/' + path, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {});
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 401) { showLogin(); throw new Error('pin'); }
+      if (!r.ok) { toast(j.error || 'Ошибка'); throw new Error(j.error); }
+      return j;
+    }
+    const act = (name, body) => api(name, body || {}).then(load);
+    const clock = ms => { const t = Math.max(0, Math.round(ms / 1000)); const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(s).padStart(2, '0'); };
+    const dur = min => { min = Math.round(min); return min < 60 ? min + 'м' : Math.floor(min / 60) + 'ч' + (min % 60 ? min % 60 : ''); };
+    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+    function showLogin() { $('login').classList.remove('hidden'); $('app').classList.add('hidden'); }
+
+    function tick() {
+      if (!st) return;
+      const s = st.session, now = Date.now() + offset;
+      if (!s) { $('ph').textContent = 'Не в фокусе'; $('big').textContent = '—'; $('arc').style.strokeDashoffset = 590.6; return; }
+      const at = s.pausedAt || now;
+      $('ph').textContent = (PH[s.phase] || '') + (s.status === 'paused' ? ' · пауза' : '');
+      if (s.phaseEnd) { const left = s.phaseEnd - at; $('big').textContent = clock(left); $('arc').style.strokeDashoffset = 590.6 * (1 - Math.max(0, left) / (s.phaseEnd - s.phaseStart)); }
+      else { $('big').textContent = clock(at - s.phaseStart); $('arc').style.strokeDashoffset = 590.6 * (1 - ((at - s.phaseStart) % 3600000) / 3600000); }
+    }
+
+    function render() {
+      const s = st.session;
+      $('goal').textContent = s ? (s.goal || 'Цель не задана') + ' · ' + s.levelName : '';
+      const c = $('ctrls'); c.innerHTML = '';
+      const btn = (t, f, cls) => { const b = el('button', cls, t); b.onclick = f; c.append(b); };
+      if (!s) {
+        st.templates.forEach(t => btn(t.name, () => act('start', { templateId: t.id }), 'primary'));
+        [25, 50, 90].forEach(m => btn(m + ' мин', () => act('start', { minutes: m }), st.templates.length ? '' : 'primary'));
+      } else {
+        if (s.status === 'paused') btn('Продолжить', () => act('resume'), 'primary');
+        else if (s.canPause) btn('Пауза', () => act('pause'));
+        if (s.phase !== 'focus') btn('Пропустить перерыв', () => act('skipBreak'));
+      }
+      $('sf').textContent = dur(st.focus);
+      $('sg').textContent = st.goal ? dur(st.goal) : 'выходной';
+      $('ss').textContent = st.streak;
+      const list = $('list'); list.innerHTML = '';
+      const row = (title, time, done, onTap, icon) => {
+        const r = el('div', 'item' + (done ? ' done' : ''));
+        r.append(el('span', 'check'), el('span', 't', (icon || '') + title), el('span', 'time', time || ''));
+        r.onclick = onTap; list.append(r);
+      };
+      st.tasks.forEach(t => row(t.title, t.time, t.done, () => act('task', { id: t.id })));
+      st.routines.forEach(r => row(r.title, r.time, r.done, () => act('routine', { id: r.id }), '↻ '));
+      if (!st.tasks.length && !st.routines.length) list.append(el('div', 'muted', 'На сегодня ничего нет'));
+      const scale = (id, labels, key) => {
+        const box = $(id); box.innerHTML = '';
+        labels.forEach((l, i) => { const b = el('button', st.journal[key] === i + 1 ? 'on' : '', l); b.onclick = () => act('journal', { patch: { [key]: st.journal[key] === i + 1 ? null : i + 1 } }); box.append(b); });
+      };
+      scale('mood', MOOD, 'mood'); scale('energy', ENERGY, 'energy');
+      for (const k of ['wins', 'blockers']) if (document.activeElement !== $(k)) $(k).value = st.journal[k] || '';
+      tick();
+    }
+
+    async function load() {
+      try {
+        const j = await api('state');
+        st = j; offset = j.now - Date.now();
+        $('login').classList.add('hidden'); $('app').classList.remove('hidden');
+        render();
+      } catch { }
+    }
+
+    $('go').onclick = async () => {
+      const r = await fetch('/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pin: $('pin').value }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { $('lerr').textContent = j.error || 'Ошибка'; return; }
+      load();
+    };
+    $('park').addEventListener('keydown', e => { if (e.key === 'Enter' && $('park').value.trim()) { act('park', { text: $('park').value.trim() }).then(() => { $('park').value = ''; toast('Запарковано'); }); } });
+    $('add').addEventListener('keydown', e => { if (e.key === 'Enter' && $('add').value.trim()) { act('add', { title: $('add').value.trim() }).then(() => { $('add').value = ''; }); } });
+    for (const k of ['wins', 'blockers']) $(k).addEventListener('change', () => act('journal', { patch: { [k]: $(k).value } }).then(() => toast('Сохранено')));
+
+    load();
+    setInterval(tick, 1000);
+    setInterval(() => { if (!document.hidden && st) load(); }, 5000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+  </script>
+</body>
+</html>

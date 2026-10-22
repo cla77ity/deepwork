@@ -6,8 +6,10 @@ const MARK_B = '# <<< deepwork';
 
 function hostsFile(file, eol) {
   const read = () => { try { return fs.readFileSync(file, 'utf8'); } catch { return ''; } };
+  // the markers contain "(" and ")": they must be escaped, or the block would never match and stay forever
+  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const strip = text => text
-    .replace(new RegExp(`\\r?\\n?${MARK_A}[\\s\\S]*?${MARK_B}\\r?\\n?`, 'g'), eol)
+    .replace(new RegExp(`\\r?\\n?${esc(MARK_A)}[\\s\\S]*?${esc(MARK_B)}\\r?\\n?`, 'g'), eol)
     .replace(/(\r?\n){3,}$/, eol);
   return {
     file,

@@ -11,6 +11,7 @@ let connecting = false;
 const effective = s => !!(s && s.active && s.enforce && Date.now() < s.expires);
 const hostOf = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return ''; } };
 const matches = (host, list) => list.some(d => host === d || host.endsWith('.' + d));
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 async function connect() {
   if (connecting || (ws && ws.readyState <= 1)) return;
@@ -45,6 +46,7 @@ function send(msg) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(msg))
 async function applyState(s) {
   const { dw: prev } = await chrome.storage.local.get('dw');
   await chrome.storage.local.set({ dw: s });
+  await checkLimits();
   await updateRules(s);
   await updatePush(s);
   if (effective(s) && !effective(prev)) sweepTabs(s);
@@ -58,6 +60,13 @@ async function applyState(s) {
 async function updateRules(s) {
   const old = await chrome.declarativeNetRequest.getDynamicRules();
   const addRules = [];
+  // daily limits: domains whose time today is used up — blocked in or out of a session
+  const { limitHit = [] } = await chrome.storage.local.get('limitHit');
+  if (limitHit.length) addRules.push({
+    id: 2, priority: 1,
+    action: { type: 'redirect', redirect: { regexSubstitution: `${BLOCK_PAGE}?m=limit#\\0` } },
+    condition: { regexFilter: '^https?://.*', requestDomains: limitHit, resourceTypes: ['main_frame'] },
+  });
   const mode = s && s.sites && s.sites.mode;
   if (effective(s) && mode && mode !== 'off') {
     const action = { type: 'redirect', redirect: { regexSubstitution: `${BLOCK_PAGE}?m=${mode}#\\0` } };
@@ -114,6 +123,61 @@ async function restoreTabs() {
   if (restore && closedTabs.length) chrome.windows.create({ url: [...new Set(closedTabs)], focused: false });
 }
 
+// ---- time per site + daily limits -------------------------------------------------------------
+// The active tab of the focused window is "being looked at" unless the computer is idle.
+// Seconds per host are summed per day in storage and reported to the app.
+async function lookingAt() {
+  try {
+    if ((await chrome.idle.queryState(60)) !== 'active') return null;
+    const w = await chrome.windows.getLastFocused({ populate: true });
+    if (!w || !w.focused) return null;
+    const t = (w.tabs || []).find(x => x.active);
+    return t && /^https?:/.test(t.url || '') ? hostOf(t.url) : null;
+  } catch { return null; }
+}
+
+let tracking = Promise.resolve();
+function track() {
+  tracking = tracking.then(async () => {
+    const now = Date.now();
+    const { cur } = await chrome.storage.session.get('cur');
+    const day = ymd(new Date());
+    const st = await chrome.storage.local.get('usage');
+    const usage = st.usage && st.usage.date === day ? st.usage : { date: day, domains: {} };
+    if (cur && cur.domain) {
+      const sec = Math.min(90, (now - cur.since) / 1000); // gaps longer than the tick are not counted
+      if (sec > 0) usage.domains[cur.domain] = (usage.domains[cur.domain] || 0) + sec;
+    }
+    const next = await lookingAt();
+    await chrome.storage.session.set({ cur: next ? { domain: next, since: now } : null });
+    await chrome.storage.local.set({ usage });
+    send({ type: 'usage', date: usage.date, domains: Object.fromEntries(Object.entries(usage.domains).map(([d, v]) => [d, Math.round(v)])) });
+    await checkLimits(usage);
+  }).catch(() => { });
+  return tracking;
+}
+
+async function checkLimits(usage) {
+  const st = await chrome.storage.local.get(['dw', 'usage', 'limitHit']);
+  usage = usage || st.usage;
+  const limits = (st.dw && st.dw.limits) || [];
+  const day = ymd(new Date());
+  const spent = d => usage && usage.date === day ? Object.entries(usage.domains).filter(([h]) => matches(h, [d])).reduce((a, [, v]) => a + v, 0) : 0;
+  const hit = limits.filter(l => spent(l.domain) >= l.minutes * 60).map(l => l.domain).sort();
+  const before = st.limitHit || [];
+  if (hit.join() === before.join()) return;
+  await chrome.storage.local.set({ limitHit: hit, limitInfo: Object.fromEntries(limits.map(l => [l.domain, l.minutes])) });
+  await updateRules(st.dw);
+  // the tab that just ran out gets the limit page right away
+  const fresh = hit.filter(d => !before.includes(d));
+  if (fresh.length) for (const t of await chrome.tabs.query({})) if (t.url && matches(hostOf(t.url), fresh)) chrome.tabs.update(t.id, { url: t.url });
+}
+
+chrome.tabs.onActivated.addListener(() => track());
+chrome.tabs.onUpdated.addListener((id, info) => { if (info.url || info.status === 'complete') track(); });
+chrome.windows.onFocusChanged.addListener(() => track());
+chrome.idle.onStateChanged.addListener(() => track());
+
 // "open anyway" from the blocked page — only in warn mode, for a few minutes
 async function allowFor(domain, minutes) {
   const { dw: s } = await chrome.storage.local.get('dw');
@@ -141,6 +205,7 @@ chrome.alarms.onAlarm.addListener(async a => {
   }
   if (a.name === 'tick') {
     connect();
+    track();
     const { dw: s } = await chrome.storage.local.get('dw');
     // expired while the app was away: drop enforcement locally
     if (s && s.active && Date.now() >= s.expires) applyState({ ...s, active: false });

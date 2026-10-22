@@ -5,28 +5,28 @@ const LEVELS = {
     name: 'Лёгкий',
     dnd: true, sites: 'warn', hosts: false, apps: 'off', onlyBrave: false,
     youtube: true, clickbait: 'blur', feeds: false, pushBlock: true,
-    pause: true, breakUnlock: true, lockSettings: false,
+    pause: true, breakUnlock: true, lockSettings: false, guard: false,
     exit: { type: 'confirm', wait: 0 },
   },
   2: {
     name: 'Рабочий',
     dnd: true, sites: 'block', hosts: false, apps: 'block', onlyBrave: false,
     youtube: true, clickbait: 'hide', feeds: true, pushBlock: true,
-    pause: false, breakUnlock: true, lockSettings: true,
+    pause: false, breakUnlock: true, lockSettings: true, guard: false,
     exit: { type: 'phrase', wait: 0 },
   },
   3: {
     name: 'Жёсткий',
     dnd: true, sites: 'block', hosts: true, apps: 'block', onlyBrave: true,
     youtube: true, clickbait: 'hide', feeds: true, pushBlock: true,
-    pause: false, breakUnlock: false, lockSettings: true,
+    pause: false, breakUnlock: false, lockSettings: true, guard: true,
     exit: { type: 'phrase', wait: 60 },
   },
   4: {
     name: 'Монах',
     dnd: true, sites: 'whitelist', hosts: true, apps: 'whitelist', onlyBrave: true,
     youtube: true, clickbait: 'hide', feeds: true, pushBlock: true,
-    pause: false, breakUnlock: false, lockSettings: true,
+    pause: false, breakUnlock: false, lockSettings: true, guard: true,
     exit: { type: 'emergency', wait: 300 },
   },
 };
@@ -47,6 +47,7 @@ const LEVEL_FIELDS = [
   { key: 'pause', label: 'Можно ставить паузу', kind: 'bool' },
   { key: 'breakUnlock', label: 'В перерыв снимать блоки', kind: 'bool' },
   { key: 'lockSettings', label: 'Запрет менять настройки в сессии', kind: 'bool' },
+  { key: 'guard', label: 'Перезапуск, если Deepwork закрыли; Brave без расширения закрывается', kind: 'bool' },
   { key: 'exit', label: 'Досрочный выход', kind: 'exit' },
 ];
 
@@ -125,6 +126,23 @@ function defaultSettings() {
     // work presets: apps and sites opened when a session starts
     presets: [],
     lastPreset: null,
+    // away from the computer this long during focus → that time doesn't count
+    idle: { enabled: true, minutes: 5 },
+    hotkeys: true,
+    ambient: { kind: 'off', volume: 0.4, breaks: false },
+    // full-screen break: 'off' | 'soft' (can skip) | 'strict' (closable only after a minute)
+    breakScreen: 'off',
+    templates: [],
+    schedule: [],
+    rituals: { morning: true, evening: true, eveningTime: '21:30', lastMorning: null, lastEvening: null },
+    // daily time limits for sites, also outside sessions: [{ domain, minutes }]
+    limits: [],
+    telegram: { enabled: false, token: '', chatId: null, pairCode: '', notify: true, daily: true, lastDaily: null },
+    phone: { enabled: false, port: 47380, pin: '' },
+    calendar: { ics: '' },
+    updates: { check: true },
+    lang: 'ru',
+    onboarded: false,
     levels: {},
     lists: {
       siteCats: SITE_CATS.map(c => ({ ...c, domains: [...c.domains] })),

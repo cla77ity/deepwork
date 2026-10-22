@@ -160,6 +160,38 @@
     ? { name: 'macOS', admin: 'macOS попросит пароль администратора', tray: 'строке меню', proc: 'имя как в Dock' }
     : { name: 'Windows', admin: 'Windows попросит права администратора', tray: 'трее', proc: 'имя процесса без .exe' };
 
+  // focus minutes of a running session so far (idle time excluded)
+  DW.liveFocusMin = s => {
+    if (!s) return 0;
+    let ms = s.focusMs - (s.idleMs || 0);
+    if (s.phase === 'focus') ms += (s.pausedAt || Date.now()) - s.phaseStart;
+    return Math.max(0, ms) / 60000;
+  };
+
+  // calendar events (from the ICS subscription) overlapping a local day
+  DW.eventsOn = ymd => {
+    const c = DW.state.calendar;
+    if (!c || !c.events) return [];
+    const a = +DW.parse(ymd), b = +DW.parse(DW.addDays(ymd, 1));
+    return c.events.filter(e => e.start < b && e.end > a);
+  };
+
+  // Focus quality of a session from its foreground-app samples: share of time in work apps
+  // (white list, the preset's apps, the browser) vs other apps. System/neutral apps don't count.
+  DW.quality = rec => {
+    const st = DW.state;
+    const u = rec && rec.usage;
+    if (!u) return null;
+    const preset = st.settings.presets.find(p => p.id === rec.presetId);
+    const work = new Set([...st.settings.lists.appAllow, ...(preset ? preset.apps.map(a => a.proc).filter(Boolean) : []), 'brave', 'brave browser'].map(x => x.toLowerCase()));
+    const neutral = new Set([...(st.defaults.safe || []), 'другое', '']);
+    let good = 0, bad = 0;
+    const apps = Object.entries(u.apps || {}).filter(([n]) => !neutral.has(n)).sort((a, b) => b[1] - a[1]);
+    for (const [n, sec] of apps) work.has(n) ? good += sec : bad += sec;
+    if (good + bad < 60) return null;
+    return { pct: Math.round(good / (good + bad) * 100), apps, work };
+  };
+
   DW.locked = () => {
     const s = DW.state.session;
     if (!s) return false;

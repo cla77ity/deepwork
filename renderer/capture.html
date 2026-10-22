@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'">
+  <style>
+    @font-face { font-family: "Inter"; font-weight: 100 900; src: url(fonts/inter-cyrillic-wght-normal.woff2) format("woff2-variations"); unicode-range: U+0400-045F, U+0490-0491, U+2116; }
+    @font-face { font-family: "Inter"; font-weight: 100 900; src: url(fonts/inter-latin-wght-normal.woff2) format("woff2-variations"); unicode-range: U+0000-00FF, U+2000-206F; }
+    html, body { margin: 0; background: transparent; overflow: hidden; font: 15px/1.4 "Inter", "Segoe UI", sans-serif; color: #f2f3f5; -webkit-font-smoothing: antialiased; }
+    .c { position: absolute; inset: 6px; border-radius: 18px; background: rgba(10, 10, 12, .97); border: 1px solid rgba(232, 236, 255, .35);
+      box-shadow: 0 0 40px -6px rgba(180, 195, 255, .35), inset 0 1px 0 rgba(255, 255, 255, .06); display: flex; flex-direction: column; justify-content: center; padding: 0 20px; gap: 4px;
+      animation: in .25s cubic-bezier(.2, .8, .2, 1); }
+    .row { display: flex; align-items: center; gap: 12px; }
+    .ring { width: 14px; height: 14px; border-radius: 50%; border: 2.5px solid #e8ecff; box-shadow: 0 0 10px rgba(180, 195, 255, .5); flex: none; }
+    input { flex: 1; background: none; border: 0; outline: none; color: inherit; font: 500 17px "Inter", sans-serif; letter-spacing: -.01em; }
+    input::placeholder { color: #55585f; }
+    .hint { color: #55585f; font-size: 11.5px; padding-left: 26px; }
+    kbd { font: 11px Consolas, monospace; border: 1px solid rgba(255, 255, 255, .14); border-radius: 5px; padding: 0 5px; color: #8d9099; }
+    @keyframes in { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
+  </style>
+</head>
+<body>
+  <div class="c">
+    <div class="row"><span class="ring"></span><input id="t" placeholder="Запиши мысль и вернись к работе" maxlength="300"></div>
+    <div class="hint" id="h"><kbd>Enter</kbd> в бэклог · <kbd>Esc</kbd> закрыть</div>
+  </div>
+  <script>
+    const t = document.getElementById('t');
+    window.dw.on('capture', ({ goal }) => {
+      t.value = '';
+      document.getElementById('h').innerHTML = '<kbd>Enter</kbd> в бэклог · <kbd>Esc</kbd> закрыть' + (goal ? ' · фокус: ' + goal.replace(/[<>&]/g, '') : '');
+      setTimeout(() => t.focus(), 30);
+    });
+    t.addEventListener('keydown', async e => {
+      if (e.key === 'Escape') window.dw.call('capture:hide');
+      if (e.key === 'Enter' && t.value.trim()) { await window.dw.call('park:add', t.value.trim()); t.value = ''; window.dw.call('capture:hide'); }
+    });
+  </script>
+</body>
+</html>

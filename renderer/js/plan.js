@@ -9,6 +9,8 @@
   function render(root) {
     const today = DW.today();
     if (!ui.sel) ui.sel = today;
+    // another view can ask for a tab (e.g. "разобрать парковку" → backlog)
+    if (DW.planTab) { ui.tab = DW.planTab; DW.planTab = null; }
     if (!ui.month) ui.month = today.slice(0, 7);
     root.append(
       h('div.view-head', h('h1', 'План')),
@@ -41,6 +43,10 @@
       const d = DW.addDays(start, i);
       const list = (tasksBy[d] || []).sort((a, b) => a.done - b.done || (a.time || '99').localeCompare(b.time || '99') || a.prio - b.prio);
       const fm = by[d] || 0;
+      const evs = DW.eventsOn(d);
+      // two lines fit in a cell at the usual window height; the rest is counted in the header
+      const slots = 2 - Math.min(1, evs.length);
+      const hidden = list.length - Math.min(slots, list.length) + Math.max(0, evs.length - 1);
       const cls = ['day', d.slice(0, 7) !== ui.month && 'out', d === today && 'today', d === ui.sel && 'sel'].filter(Boolean).join('.');
       const cell = h('div.' + cls, {
         onclick: () => { ui.sel = d; ui.tab = 'day'; DW.render(); },
@@ -48,9 +54,11 @@
         ondragleave: () => cell.classList.remove('drop'),
         ondrop: e => { e.preventDefault(); const id = e.dataTransfer.getData('text/task'); if (id) save({ id, date: d }); },
       },
-        h('div.dn', h('b', String(+d.slice(8))), fm >= 1 ? h('span.fm.num', DW.durShort(fm)) : null),
-        list.slice(0, 3).map(t => h('div.tchip' + (t.done ? '.done' : ''), { style: { '--c': goalColor(t) }, draggable: true, ondragstart: e => e.dataTransfer.setData('text/task', t.id), title: (t.time ? t.time + ' · ' : '') + t.title }, t.title)),
-        list.length > 3 ? h('div.more', '+' + (list.length - 3) + ' ещё') : null,
+        h('div.dn', h('b', String(+d.slice(8))), hidden > 0 ? h('span.more', { title: 'ещё ' + hidden }, '+' + hidden) : null, fm >= 1 ? h('span.fm.num', DW.durShort(fm)) : null),
+        // calendar event first (one), then tasks
+        evs.slice(0, 1).map(e => h('div.echip', { title: (e.allDay ? 'весь день' : DW.hhmm(e.start) + '–' + DW.hhmm(e.end)) + ' · ' + e.title }, e.title)),
+        list.slice(0, slots).map(t => h('div.tchip' + (t.done ? '.done' : ''), { style: { '--c': goalColor(t) }, draggable: true, ondragstart: e => e.dataTransfer.setData('text/task', t.id), title: (t.time ? t.time + ' · ' : '') + t.title }, t.title)),
+
         fm >= 1 ? h('div.heat', { style: { opacity: String(Math.min(1, 0.25 + fm / (DW.goalFor(d) || fm) * 0.75)), width: Math.min(100, fm / (DW.goalFor(d) || fm) * 100) + '%' } }) : null);
       body.append(cell);
     }
@@ -101,12 +109,13 @@
     if (opts.showDate && t.date) meta.push(h('span', DW.parse(t.date).getDate() + ' ' + DW.MONTHS_GEN[DW.parse(t.date).getMonth()]));
     if (t.time) meta.push(h('span.num', t.time));
     if (t.est) meta.push(h('span', 'займёт ' + DW.dur(t.est)));
+    if (t.parked) meta.push(h('span', { title: t.notes || '' }, 'с парковки'));
     if (t.focusMs >= 60000) meta.push(h('span', { style: { color: 'var(--text)' } }, 'в фокусе ' + DW.dur(t.focusMs / 60000)));
     if (g) meta.push(h('span.row', { style: { gap: '5px' } }, h('span.gdot', { style: { '--c': g.color } }), g.title));
     const today = DW.today();
     return h('div.task' + (t.done ? '.done' : ''), { draggable: true, ondragstart: e => e.dataTransfer.setData('text/task', t.id), ondblclick: () => editTask(t) },
       h('button.check' + (t.done ? '.on' : ''), { onclick: () => save({ id: t.id, done: !t.done, doneAt: !t.done ? Date.now() : null }) }),
-      h('div.body', h('div.title', t.title), h('div.meta', meta), t.notes ? h('div.dim', { style: { fontSize: '12px', marginTop: '3px', whiteSpace: 'pre-wrap' } }, t.notes) : null),
+      h('div.body', h('div.title', t.top === DW.today() ? h('span.star', { title: 'Главное на сегодня' }, '★ ') : null, t.title), h('div.meta', meta), t.notes ? h('div.dim', { style: { fontSize: '12px', marginTop: '3px', whiteSpace: 'pre-wrap' } }, t.notes) : null),
       h('div.acts',
         !t.done && !DW.state.session ? DW.iconBtn('play', 'Начать фокус на задаче', () => { DW.focusDraft.goal = t.title; DW.focusDraft.taskId = t.id; DW.go('focus'); }) : null,
         !t.done && t.date !== DW.addDays(today, 1) ? DW.iconBtn('next', t.date && t.date < today ? 'Перенести на сегодня' : 'Перенести на завтра', () => save({ id: t.id, date: t.date && t.date < today ? today : DW.addDays(t.date || today, 1) })) : null,
@@ -130,6 +139,13 @@
         overdue.map(t => taskRow(t, { showDate: true })));
     }
     parts.push(h('div.sec-title', d === today ? 'Сегодня' : 'Задачи'), tasks.length ? tasks.map(t => taskRow(t)) : h('div.empty', 'Задач нет. Добавь выше или перетащи из бэклога'));
+    // busy time from the calendar subscription
+    const events = DW.eventsOn(d);
+    if (events.length) {
+      const busy = events.filter(e => !e.allDay).reduce((a, e) => a + (Math.min(e.end, +DW.parse(DW.addDays(d, 1))) - Math.max(e.start, +DW.parse(d))) / 60000, 0);
+      parts.splice(0, 0, h('div.sec-title', 'Календарь' + (busy >= 1 ? ` · занято ${DW.dur(busy)}` : '')),
+        events.map(e => h('div.event', h('span.num.dim', e.allDay ? 'весь день' : `${DW.hhmm(e.start)}–${DW.hhmm(e.end)}`), h('span', e.title))));
+    }
     const routines = DW.routinesFor(d);
     if (routines.length) {
       const doneR = routines.filter(r => DW.routineDone(d, r.id)).length;

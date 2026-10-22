@@ -37,6 +37,9 @@ class Session extends EventEmitter {
       canPause: !!opts.canPause,
       stopReqAt: null,
       attempts: { sites: {}, apps: {} },
+      idleMs: 0, // time away from the computer during focus — not counted as focus
+      usage: { apps: {}, sites: {} }, // seconds per foreground app / browser domain during focus
+      parked: 0, // thoughts sent to the parking lot during the session
     };
     this.changed('start');
     return this.s;
@@ -45,6 +48,10 @@ class Session extends EventEmitter {
   restore(s) {
     this.s = s;
     if (!s) return;
+    // states saved by older versions
+    s.idleMs = s.idleMs || 0;
+    s.usage = s.usage || { apps: {}, sites: {} };
+    s.parked = s.parked || 0;
     // fast-forward phases that ended while the app was closed
     let guard = 0;
     while (this.s && this.s.status === 'running' && this.s.phaseEnd && Date.now() >= this.s.phaseEnd && guard++ < 100) this.advance(this.s.phaseEnd);
@@ -131,9 +138,31 @@ class Session extends EventEmitter {
   focusSoFar(at = Date.now()) {
     const s = this.s;
     if (!s) return 0;
-    let ms = s.focusMs;
+    let ms = s.focusMs - s.idleMs;
     if (s.phase === 'focus') ms += (s.pausedAt || at) - s.phaseStart;
     return Math.max(0, ms);
+  }
+
+  // away-from-keyboard time inside a focus phase
+  addIdle(ms) {
+    const s = this.s;
+    if (!s || ms <= 0) return;
+    s.idleMs += ms;
+    this.changed('idle');
+  }
+
+  // kind: 'apps' | 'sites'; adds seconds, only while focusing
+  track(kind, key, sec) {
+    const s = this.s;
+    if (!s || s.phase !== 'focus' || s.status !== 'running' || !key || sec <= 0) return;
+    const bag = s.usage[kind];
+    bag[key] = (bag[key] || 0) + sec;
+  }
+
+  park() {
+    if (!this.s) return;
+    this.s.parked += 1;
+    this.changed('park');
   }
 
   // Normal finish for flow sessions that reached the minimum; everything else goes through requestStop.
@@ -177,10 +206,11 @@ class Session extends EventEmitter {
   // counted: the current focus stretch is already added to focusMs (natural end of the last phase)
   finish(result, at = Date.now(), counted = false) {
     const s = this.s;
-    const focusMs = s.phase === 'focus' && !counted ? this.focusSoFar(at) : s.focusMs;
+    const focusMs = s.phase === 'focus' && !counted ? this.focusSoFar(at) : Math.max(0, s.focusMs - s.idleMs);
     const record = {
       id: s.id, start: s.startedAt, end: at, focusMs, mode: s.mode, level: s.level,
       goal: s.goal, taskId: s.taskId, result, rounds: s.round, attempts: s.attempts,
+      idleMs: s.idleMs, usage: s.usage, parked: s.parked, presetId: s.presetId,
     };
     this.s = null;
     this.emit('finish', record);

@@ -48,7 +48,113 @@
         kpi('Доведено до конца', st.sessions.length ? Math.round(done / st.sessions.length * 100) + '%' : '—', `${done} из ${st.sessions.length}`),
         kpi('Отвлечений за 7 дней', String(distractWeek), 'попыток открыть заблокированное')));
 
-    root.append(h('div.stats-grid.stagger', heatmap(by), bars(by, st.settings.dailyGoalMin), distractions(), recent()));
+    root.append(h('div.stats-grid.stagger', heatmap(by), bars(by, st.settings.dailyGoalMin), hours(), quality(), distractions(), sites(), estimates(), goalsTime(), recent()),
+      achievements());
+  }
+
+  // when deep work happens: focus minutes by weekday × hour, last 8 weeks
+  function hours() {
+    const since = Date.now() - 56 * 86400000;
+    const grid = [...Array(7)].map(() => Array(24).fill(0));
+    for (const ss of DW.state.sessions) {
+      if (ss.start < since) continue;
+      // spread the session over the hours it covered
+      let t = ss.start;
+      const end = ss.start + ss.focusMs;
+      while (t < end) {
+        const d = new Date(t);
+        const next = Math.min(end, new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours() + 1).getTime());
+        grid[(d.getDay() + 6) % 7][d.getHours()] += (next - t) / 60000;
+        t = next;
+      }
+    }
+    const from = 6, to = 24;
+    const max = Math.max(1, ...grid.flat());
+    const box = h('div.hgrid');
+    box.append(h('span'), ...[...Array(to - from)].map((_, i) => h('span.hl', (from + i) % 3 === 0 ? String(from + i) : '')));
+    grid.forEach((row, dw) => {
+      box.append(h('span.hl', DW.DOW[dw]));
+      for (let hr = from; hr < to; hr++) {
+        const v = row[hr];
+        const cell = h('i', { style: { background: v ? `rgba(232,236,255,${0.1 + 0.85 * v / max})` : '' } });
+        hover(cell, `${DW.DOW[dw]}, ${hr}:00–${hr + 1}:00 — ${v ? DW.dur(v) : 'нет'} за 8 недель`);
+        box.append(cell);
+      }
+    });
+    // the best two-hour window
+    let best = null;
+    for (let hr = from; hr < to - 1; hr++) {
+      const v = grid.reduce((a, r) => a + r[hr] + r[hr + 1], 0);
+      if (!best || v > best.v) best = { hr, v };
+    }
+    return h('div.card', h('h3', 'Лучшее время'), box,
+      best && best.v > 30 ? h('div.hint', { style: { marginTop: '10px' } }, `Твоё лучшее окно — ${best.hr}:00–${best.hr + 2}:00. Ставь туда самое важное.`) : h('div.hint', { style: { marginTop: '10px' } }, 'Нужно больше сессий, чтобы найти лучшее время'));
+  }
+
+  // focus quality per session (share of time in work apps), last 14
+  function quality() {
+    const rows = DW.state.sessions.slice(-30).map(ss => ({ ss, q: DW.quality(ss) })).filter(x => x.q).slice(-14);
+    if (!rows.length) return h('div.card', h('h3', 'Качество фокуса'), h('div.empty', 'Появится после первых сессий: Deepwork смотрит, какие программы были на экране'));
+    const avg = Math.round(rows.reduce((a, x) => a + x.q.pct, 0) / rows.length);
+    const apps = {};
+    rows.forEach(({ q }) => q.apps.forEach(([n, sec]) => { apps[n] = (apps[n] || 0) + sec; }));
+    const top = Object.entries(apps).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const work = rows[rows.length - 1].q.work;
+    const tot = top.reduce((a, [, v]) => a + v, 0) || 1;
+    return h('div.card', h('h3', 'Качество фокуса'),
+      h('div.row', { style: { alignItems: 'baseline', gap: '8px' } }, h('div', { style: { font: '600 30px var(--font)', letterSpacing: '-.02em' } }, avg + '%'), h('span.muted', 'времени в рабочих программах · последние ' + DW.count(rows.length, 'сессия', 'сессии', 'сессий'))),
+      h('div', { style: { marginTop: '10px' } }, top.map(([n, sec]) => h('div.dist', h('span', { style: { width: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, n, work.has(n) ? '' : h('span.dim', ' · не рабочая')),
+        h('div.bar', h('i', { style: { width: sec / tot * 100 + '%', background: work.has(n) ? 'var(--accent)' : 'var(--muted)' } })), h('span.num.muted', { style: { width: '54px', textAlign: 'right' } }, DW.durShort(sec / 60))))));
+  }
+
+  // browser time per site this week (from the extension), outside and inside sessions
+  function sites() {
+    const u = DW.state.usage || {};
+    const agg = {};
+    for (let i = 0; i < 7; i++) for (const [d, sec] of Object.entries(u[DW.addDays(DW.today(), -i)] || {})) agg[d] = (agg[d] || 0) + sec;
+    const top = Object.entries(agg).filter(([, v]) => v >= 60).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const limits = Object.fromEntries((DW.state.settings.limits || []).map(l => [l.domain, l.minutes]));
+    const max = top.length ? top[0][1] : 1;
+    return h('div.card', h('h3', 'Время на сайтах · 7 дней'),
+      top.length ? top.map(([d, sec]) => h('div.dist', h('span', { style: { width: '170px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, d, limits[d] ? h('span.dim', ` · лимит ${limits[d]} мин/день`) : ''),
+        h('div.bar', h('i', { style: { width: sec / max * 100 + '%' } })), h('span.num.muted', { style: { width: '54px', textAlign: 'right' } }, DW.durShort(sec / 60))))
+        : h('div.empty', 'Считает расширение Brave — данные появятся, когда оно подключено'));
+  }
+
+  // estimate accuracy: planned "займёт" vs real focus time on done tasks
+  function estimates() {
+    const done = DW.state.tasks.filter(t => t.done && t.est > 0 && t.focusMs >= 5 * 60000);
+    if (done.length < 3) return h('div.card', h('h3', 'Точность оценок'), h('div.empty', 'Указывай «займёт» у задач и запускай фокус на них — здесь появится, насколько точно ты планируешь'));
+    const ratio = done.reduce((a, t) => a + t.focusMs / 60000, 0) / done.reduce((a, t) => a + t.est, 0);
+    const pct = Math.round((ratio - 1) * 100);
+    const worst = done.map(t => ({ t, r: t.focusMs / 60000 / t.est })).sort((a, b) => b.r - a.r).slice(0, 3);
+    return h('div.card', h('h3', 'Точность оценок'),
+      h('div', { style: { font: '600 22px var(--font)', letterSpacing: '-.02em' } }, Math.abs(pct) < 10 ? 'Оценки точные' : pct > 0 ? `Недооцениваешь на ${pct}%` : `Переоцениваешь на ${-pct}%`),
+      h('div.muted', { style: { fontSize: '12.5px', marginBottom: '8px' } }, `по ${DW.count(done.length, 'задаче', 'задачам', 'задачам')}: план ${DW.dur(done.reduce((a, t) => a + t.est, 0))}, факт ${DW.dur(done.reduce((a, t) => a + t.focusMs / 60000, 0))}`),
+      worst.map(({ t, r }) => h('div.prot.sub', t.title, h('span.v.num', `×${r.toFixed(1).replace('.', ',')}`))));
+  }
+
+  // focus time per goal over the last 30 days (via tasks linked to goals)
+  function goalsTime() {
+    const since = Date.now() - 30 * 86400000;
+    const byTask = {};
+    for (const ss of DW.state.sessions) if (ss.taskId && ss.start >= since) byTask[ss.taskId] = (byTask[ss.taskId] || 0) + ss.focusMs / 60000;
+    const agg = {};
+    for (const t of DW.state.tasks) if (t.goalId && byTask[t.id]) agg[t.goalId] = (agg[t.goalId] || 0) + byTask[t.id];
+    const rows = Object.entries(agg).map(([id, m]) => [DW.goalById(id), m]).filter(([g]) => g).sort((a, b) => b[1] - a[1]);
+    const max = rows.length ? rows[0][1] : 1;
+    return h('div.card', h('h3', 'Время по целям · 30 дней'),
+      rows.length ? rows.map(([g, m]) => h('div.dist', h('span.row', { style: { width: '170px', gap: '8px', overflow: 'hidden', whiteSpace: 'nowrap' } }, h('span.gdot', { style: { '--c': g.color } }), g.title),
+        h('div.bar', h('i', { style: { width: m / max * 100 + '%', background: g.color } })), h('span.num.muted', { style: { width: '54px', textAlign: 'right' } }, DW.durShort(m))))
+        : h('div.empty', 'Привяжи задачи к целям и запускай фокус на задачах'));
+  }
+
+  function achievements() {
+    const have = DW.state.achievements || {};
+    const n = DW.ACHIEVEMENTS.filter(a => have[a.id]).length;
+    return h('div.section', { style: { marginTop: '22px' } }, h('div.row', h('div.h2', 'Достижения'), h('span.muted', `${n} из ${DW.ACHIEVEMENTS.length}`)),
+      h('div.ach-grid', DW.ACHIEVEMENTS.map(a => h('div.ach' + (have[a.id] ? '.on' : ''), { title: have[a.id] ? 'Получено ' + new Date(have[a.id]).toLocaleDateString('ru') : 'Ещё не получено' },
+        h('span.ach-ring'), h('div', h('b', a.title), h('div.dim', { style: { fontSize: '12px' } }, a.desc))))));
   }
 
   function heatmap(by) {

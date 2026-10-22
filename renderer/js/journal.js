@@ -19,6 +19,7 @@
 
   function render(root) {
     if (!ui.date) ui.date = DW.today();
+    if (DW.journalDate) { ui.date = DW.journalDate; ui.mode = 'day'; DW.journalDate = null; }
     const shift = n => { ui.date = DW.addDays(ui.date, ui.mode === 'week' ? n * 7 : n); DW.entering = true; DW.render(); };
     const mon = DW.addDays(ui.date, -DW.dowOf(ui.date));
     const label = ui.mode === 'day' ? DW.longDate(ui.date) : weekLabel(mon);
@@ -78,6 +79,11 @@
   }
 
   function daySummary(d) {
+    const dayQ = sessionsOn(d).map(DW.quality).filter(Boolean);
+    const quality = dayQ.length ? Math.round(dayQ.reduce((a, q) => a + q.pct, 0) / dayQ.length) : null;
+    const idle = sessionsOn(d).reduce((a, x) => a + (x.idleMs || 0), 0) / 60000;
+    const parked = DW.state.tasks.filter(t => t.parked && DW.ymd(t.createdAt) === d).length;
+    const sites = Object.entries((DW.state.usage || {})[d] || {}).filter(([, sec]) => sec >= 60).sort((a, b) => b[1] - a[1]).slice(0, 4);
     const by = DW.focusByDay();
     const fm = by[d] || 0, goal = DW.goalFor(d);
     const ss = sessionsOn(d);
@@ -100,6 +106,10 @@
       row('Задачи', tasks.length ? `${tasksDone.length} из ${tasks.length}` : 'не было'),
       routines.length ? row('Рутина', `${rDone} из ${routines.length}`) : null,
       row('Отвлечений', topDist.length ? topDist.map(([k, n]) => `${k} ×${n}`).join(', ') : 'нет'),
+      quality != null ? row('Качество фокуса', quality + '%') : null,
+      idle >= 1 ? row('Простой', DW.dur(idle) + ' не засчитано') : null,
+      parked ? row('На парковку', DW.count(parked, 'мысль', 'мысли', 'мыслей')) : null,
+      sites.length ? row('Сайты за день', sites.map(([d2, sec]) => `${d2} ${DW.durShort(sec / 60)}`).join(', ')) : null,
       tasksDone.length ? h('div', { style: { marginTop: '8px' } }, tasksDone.slice(0, 6).map(t => h('div.prot.sub', '✓ ' + t.title))) : null);
   }
 
@@ -198,10 +208,14 @@
       const items = w.days.filter(d => (entry(d)[k] || '').trim()).map(d => h('div.jnote', h('div.dim', { style: { fontSize: '12px' } }, DW.DOW[DW.dowOf(d)] + ' ' + DW.parse(d).getDate()), h('div', { style: { whiteSpace: 'pre-wrap' } }, entry(d)[k])));
       return h('div.card', h('h3', title), items.length ? items : h('div.empty', 'Пусто — заполняй страницу дня'));
     };
+    // weekly review: keep / stop / next — the classic retro, short
     const review = h('div.card.jmain',
-      h('h3', 'Итог недели'),
-      h('textarea.input.jtext', { placeholder: 'Что главное за неделю? Что сработало?', oninput: e => save(key, { summary: e.target.value }) }, entry(key).summary || ''),
-      h('div.lbl', { style: { marginTop: '6px' } }, 'Фокус на следующую неделю'),
+      h('h3', 'Разбор недели'),
+      h('div.lbl', 'Что сработало'),
+      h('textarea.input.jtext', { placeholder: 'Что повторить на следующей неделе', oninput: e => save(key, { summary: e.target.value }) }, entry(key).summary || ''),
+      h('div.lbl', 'Что убрать'),
+      h('textarea.input.jtext', { placeholder: 'Что мешало и от чего отказаться', oninput: e => save(key, { stop: e.target.value }) }, entry(key).stop || ''),
+      h('div.lbl', 'Фокус на следующую неделю'),
       h('textarea.input.jtext', { placeholder: 'Одна-три главные вещи', oninput: e => save(key, { next: e.target.value }) }, entry(key).next || ''));
 
     return h('div.col.stagger', { style: { gap: '16px' } },

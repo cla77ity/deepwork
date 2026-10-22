@@ -28,6 +28,8 @@ class Bridge extends EventEmitter {
         try { msg = JSON.parse(raw); } catch { return; }
         if (msg.type === 'hello') { this.info.set(ws, msg); this.emitStatus(); }
         if (msg.type === 'attempt' && typeof msg.domain === 'string') this.emit('attempt', msg.domain.slice(0, 120));
+        // seconds per domain today, cumulative: { date: 'YYYY-MM-DD', domains: { 'youtube.com': 812 } }
+        if (msg.type === 'usage' && typeof msg.date === 'string' && msg.domains && typeof msg.domains === 'object') this.emit('usage', msg);
       });
       ws.on('close', () => { this.clients.delete(ws); this.info.delete(ws); this.emitStatus(); });
       this.emitStatus();

@@ -58,6 +58,16 @@ settings.presets = [
 ];
 settings.lastPreset = 'p1';
 settings.goalByDow = [null, null, null, null, null, 60, 0];
+settings.templates = [
+  { id: 't1', name: 'Код 90', mode: 'custom', minutes: 90, level: 3, presetId: 'p1' },
+  { id: 't2', name: 'Помодоро', mode: 'pomodoro', focus: 25, short: 5, long: 15, rounds: 4, level: 2, presetId: null },
+];
+settings.schedule = [{ id: 'sc1', name: 'Утренний код', days: [0, 1, 2, 3, 4], time: '10:00', minutes: 90, level: 3, presetId: 'p1', auto: true, contract: false, active: true }];
+settings.limits = [{ domain: 'youtube.com', minutes: 30 }, { domain: 'reddit.com', minutes: 15 }];
+settings.onboarded = true;
+settings.rituals.lastMorning = ymd(new Date());
+const usage = {};
+for (let i = 0; i < 8; i++) usage[day(-i)] = { 'youtube.com': 600 + Math.round(Math.random() * 1800), 'github.com': 1800 + Math.round(Math.random() * 3600), 'reddit.com': Math.round(Math.random() * 900), 'claude.ai': 1200 };
 const routines = [
   { id: 'r1', title: 'Зарядка', days: [0, 1, 2, 3, 4, 5, 6], time: '08:00', est: 15, createdAt: Date.now() - 40 * 86400000 },
   { id: 'r2', title: '30 минут английского', days: [0, 1, 2, 3, 4], time: '19:00', est: 30, createdAt: Date.now() - 40 * 86400000 },
@@ -75,6 +85,12 @@ for (let i = 0; i < 7; i++) {
     tomorrow: i === 0 ? ['README и скриншоты', 'Тест на всех уровнях'].join('\n') : '' };
 }
 journal[day(0)].notes = [{ at: Date.now() - 3 * 3600000, text: 'Первые 15 минут раскачивался, потом пошло.', goal: 'Расширение для Brave', min: 50 }];
-fs.writeFileSync(path.join(dir, 'data.json'), JSON.stringify({ v: 1, settings, tasks, goals, sessions, routines, routineLog, journal }, null, 1));
+for (const ss of sessions) {
+  const m = ss.focusMs / 1000;
+  ss.usage = { apps: { code: Math.round(m * 0.62), brave: Math.round(m * 0.2), telegram: Math.round(m * (Math.random() * 0.1)), explorer: 40 }, sites: {} };
+  ss.idleMs = Math.random() < 0.2 ? 6 * 60000 : 0;
+}
+tasks.push(T('Купить билеты на выходные', null, { parked: true, notes: 'Запарковано во время фокуса: Код' }));
+fs.writeFileSync(path.join(dir, 'data.json'), JSON.stringify({ v: 1, settings, tasks, goals, sessions, routines, routineLog, journal, usage, achievements: {} }, null, 1));
 try { fs.unlinkSync(path.join(dir, 'state.json')); } catch { }
 console.log('demo profile at', dir);

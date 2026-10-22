@@ -125,6 +125,37 @@ while ($true) {
   return () => { stopped = true; if (proc) proc.kill(); };
 }
 
+// Name of the app in the foreground, every `everyMs` (for "focus quality").
+function watchForeground(onName, everyMs = 3000) {
+  const loop = `$ErrorActionPreference = 'SilentlyContinue'
+Add-Type -TypeDefinition @"
+using System; using System.Runtime.InteropServices;
+public static class DwFg {
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+}
+"@
+while ($true) {
+  $p = 0; [void][DwFg]::GetWindowThreadProcessId([DwFg]::GetForegroundWindow(), [ref]$p)
+  $n = ''; if ($p) { $n = (Get-Process -Id $p).ProcessName }
+  [Console]::Out.WriteLine($n); [Console]::Out.Flush()
+  Start-Sleep -Milliseconds ${everyMs}
+}`;
+  let proc = null, stopped = false;
+  const start = () => {
+    proc = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encode(loop)], { windowsHide: true });
+    let buf = '';
+    proc.stdout.on('data', d => {
+      buf += d;
+      let i;
+      while ((i = buf.indexOf('\n')) >= 0) { const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1); onName(line.toLowerCase()); }
+    });
+    proc.on('exit', () => { if (!stopped) setTimeout(() => !stopped && start(), 3000); });
+  };
+  start();
+  return () => { stopped = true; if (proc) proc.kill(); };
+}
+
 // ---- apps & browser -------------------------------------------------------
 const APP_FILTERS = [{ name: 'Программы и ярлыки', extensions: ['exe', 'lnk', 'bat', 'cmd', 'url'] }, { name: 'Все файлы', extensions: ['*'] }];
 
@@ -155,5 +186,5 @@ function openBrave(urls) {
 module.exports = {
   platform: 'win', run, ps, encode, dndOn, dndOff, writeHosts,
   hostsHasBlock: hosts.hasBlock, buildHosts: hosts.build,
-  listProcesses, watchProcesses, APP_FILTERS, appInfo, openBrave,
+  listProcesses, watchProcesses, watchForeground, APP_FILTERS, appInfo, openBrave,
 };

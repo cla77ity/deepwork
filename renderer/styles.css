@@ -242,7 +242,7 @@ button.chip:hover { color: var(--text); border-color: var(--line3); }
 .day .dn b { font-weight: 600; }
 .day .fm { margin-left: auto; font-size: 10.5px; color: var(--muted); }
 .day .heat { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--accent); box-shadow: 0 0 8px var(--glow); border-radius: 0 2px 2px 0; }
-.tchip { font-size: 11.5px; padding: 2px 6px 2px 7px; border-radius: 6px; background: rgba(255, 255, 255, .045); border-left: 2px solid var(--c, var(--dim)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tchip { flex: none; font-size: 11.5px; padding: 2px 6px 2px 7px; border-radius: 6px; background: rgba(255, 255, 255, .045); border-left: 2px solid var(--c, var(--dim)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tchip.done { color: var(--dim); text-decoration: line-through; }
 .more { font-size: 11px; color: var(--dim); padding-left: 4px; }
 .side-panel { display: flex; flex-direction: column; min-height: 0; padding: 14px; gap: 12px; }
@@ -366,6 +366,56 @@ ul.insights li::before { content: ""; position: absolute; left: 2px; top: .62em;
 .preset .chip .x:hover { opacity: 1; }
 .norms { display: flex; gap: 8px; flex-wrap: wrap; }
 .norms .param { align-items: center; }
+
+/* ---- settings layout ---- */
+.set-layout { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 26px; align-items: start; }
+.set-nav { position: sticky; top: 0; display: flex; flex-direction: column; gap: 1px; max-height: calc(100vh - 160px); overflow: auto; padding-right: 4px; }
+.set-nav button { text-align: left; border: 0; background: none; color: var(--muted); padding: 6px 10px; border-radius: 8px; font-size: 13px; transition: color var(--t-fast), background var(--t-fast); }
+.set-nav button:hover { color: var(--text); background: rgba(255, 255, 255, .04); }
+.set-content { min-width: 0; }
+.select.sm, .input.sm { padding: 5px 26px 5px 9px; font-size: 12.5px; }
+.day-chip { padding: 4px 8px; }
+.lbar { width: 90px; height: 4px; border-radius: 9px; background: rgba(255, 255, 255, .06); overflow: hidden; }
+.lbar i { display: block; height: 100%; background: var(--accent); }
+code.big-code { font-size: 15px; padding: 6px 10px; }
+input.range { accent-color: var(--accent); width: 220px; }
+
+/* ---- focus extras ---- */
+.chip.tpl svg { width: 11px; height: 11px; fill: currentColor; stroke: none; }
+.ring-tools { justify-content: center; gap: 8px; margin-top: -8px; opacity: .7; transition: opacity var(--t); }
+.timer-wrap:hover .ring-tools { opacity: 1; }
+.mini-task.top .tt::before { content: "★ "; color: var(--accent); }
+.star { color: var(--accent); }
+body.zen .titlebar, body.zen .side { display: none; }
+body.zen .shell { height: 100%; }
+body.zen main { display: grid; place-items: center; padding: 0; }
+.zen-wrap { width: min(720px, 100%); }
+.zen-wrap .card { background: none; border: 0; box-shadow: none; }
+
+/* ---- plan: calendar events ---- */
+.echip { flex: none; font-size: 11px; padding: 1px 6px; border-radius: 6px; border: 1px dashed var(--line3); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.event { display: flex; gap: 10px; padding: 6px 8px; font-size: 13px; border-left: 2px dashed var(--line3); margin: 2px 0 2px 4px; }
+
+/* ---- stats extras ---- */
+.hgrid { display: grid; grid-template-columns: 22px repeat(18, 1fr); gap: 2px; align-items: center; }
+.hgrid i { height: 14px; border-radius: 3px; background: rgba(255, 255, 255, .035); }
+.hgrid .hl { font-size: 10px; color: var(--dim); }
+.ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 12px; }
+.ach { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); opacity: .45; transition: opacity var(--t), border-color var(--t); }
+.ach.on { opacity: 1; border-color: rgba(232, 236, 255, .3); box-shadow: 0 0 24px -10px var(--glow); }
+.ach-ring { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid var(--dim); flex: none; }
+.ach.on .ach-ring { border-color: var(--accent); box-shadow: 0 0 10px var(--glow); }
+
+/* ---- morning ritual, wizard, palette ---- */
+.modal.wide { width: min(600px, calc(100vw - 40px)); }
+.mpick { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 11px; border: 1px solid transparent; background: none; text-align: left; transition: background var(--t-fast), border-color var(--t-fast); }
+.mpick:hover { background: rgba(255, 255, 255, .03); }
+.mpick.on { border-color: rgba(232, 236, 255, .35); background: var(--accent-soft); }
+.modal.palette { width: min(560px, calc(100vw - 40px)); padding: 10px; gap: 6px; align-self: start; margin-top: 14vh; }
+.pal-in { font-size: 16px; padding: 12px 14px; border-radius: 12px; }
+.pal-list { display: flex; flex-direction: column; max-height: 420px; overflow: auto; }
+.pal-item { display: flex; justify-content: space-between; gap: 12px; padding: 9px 12px; border: 0; background: none; border-radius: 10px; text-align: left; font-size: 14px; }
+.pal-item.on { background: var(--accent-soft); }
 
 /* ---- modal & toasts ---- */
 .modal-bg { position: fixed; inset: 0; background: rgba(0, 0, 0, .6); backdrop-filter: blur(10px) saturate(.8); display: grid; place-items: center; z-index: 50; animation: fade .22s var(--ease); }

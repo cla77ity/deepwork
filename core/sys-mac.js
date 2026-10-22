@@ -74,6 +74,18 @@ function watchProcesses(onList) {
   return () => { stopped = true; clearInterval(iv); };
 }
 
+// Name of the app in the foreground (as in the Dock), every `everyMs`.
+function watchForeground(onName, everyMs = 3000) {
+  let stopped = false;
+  const iv = setInterval(async () => {
+    if (stopped) return;
+    const r = await run('sh', ['-c', 'lsappinfo info -only name "$(lsappinfo front)"']);
+    const m = r.out.match(/="([^"]+)"/);
+    onName(m ? m[1].toLowerCase() : '');
+  }, everyMs);
+  return () => { stopped = true; clearInterval(iv); };
+}
+
 // ---- apps & browser -------------------------------------------------------
 const APP_FILTERS = [{ name: 'Программы', extensions: ['app'] }];
 
@@ -94,6 +106,6 @@ function openBrave(urls) {
 module.exports = {
   platform: 'mac', run, dndOn, dndOff, writeHosts,
   hostsHasBlock: hosts.hasBlock, buildHosts: hosts.build,
-  listProcesses, watchProcesses, APP_FILTERS, appInfo, openBrave,
+  listProcesses, watchProcesses, watchForeground, APP_FILTERS, appInfo, openBrave,
   SHORTCUT_ON, SHORTCUT_OFF,
 };
