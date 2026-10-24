@@ -129,7 +129,7 @@ function defaultSettings() {
     // away from the computer this long during focus → that time doesn't count
     idle: { enabled: true, minutes: 5 },
     hotkeys: true,
-    ambient: { kind: 'off', volume: 0.4, breaks: false },
+    ambient: { kind: 'off', volume: 0.2, breaks: false, v: 2 },
     // full-screen break: 'off' | 'soft' (can skip) | 'strict' (closable only after a minute)
     breakScreen: 'off',
     templates: [],

@@ -355,7 +355,7 @@
     const a = { ...st.ambient };
     add(section('Звуки', 'Фон для концентрации, генерируется самим Deepwork — без файлов и интернета. Бинауральный ритм работает только в наушниках.', card(
       h('div.row.wrap', { style: { gap: '6px' } }, DW.AMBIENT.map(([k, l]) => h('button.chip' + (a.kind === k ? '.on' : ''), { onclick: () => { set({ ambient: { ...a, kind: k } }); if (k !== 'off') window.dw.call('ambient:preview', k, a.volume); } }, l))),
-      h('div.row', h('span.muted', 'Громкость'), h('input.range', { type: 'range', min: 0, max: 1, step: 0.05, value: a.volume, onchange: e => { set({ ambient: { ...a, volume: +e.target.value } }); if (a.kind !== 'off') window.dw.call('ambient:preview', a.kind, +e.target.value); } })),
+      DW.volumeSlider(true),
       toggle(a.breaks, 'Играть и в перерывах', v => set({ ambient: { ...a, breaks: v } })))));
 
     const w = { ...st.widget };

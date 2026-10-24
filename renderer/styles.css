@@ -379,6 +379,8 @@ ul.insights li::before { content: ""; position: absolute; left: 2px; top: .62em;
 .lbar i { display: block; height: 100%; background: var(--accent); }
 code.big-code { font-size: 15px; padding: 6px 10px; }
 input.range { accent-color: var(--accent); width: 220px; }
+input.range.vol { width: 160px; height: 4px; cursor: pointer; }
+.ring-tools .vol-row input.range.vol { width: 110px; }
 
 /* ---- focus extras ---- */
 .chip.tpl svg { width: 11px; height: 11px; fill: currentColor; stroke: none; }

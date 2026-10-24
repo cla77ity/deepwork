@@ -85,7 +85,8 @@
     if (DW.onboardingRepaint) DW.onboardingRepaint();
     // autosaving text (journal) must not rebuild the page under the cursor
     const a = document.activeElement;
-    if (a && a.tagName === 'TEXTAREA' && a.closest('#view')) { renderNav(); return; }
+    // …and a volume slider must not be rebuilt while it is being dragged
+    if (a && (a.tagName === 'TEXTAREA' || a.type === 'range') && a.closest('#view')) { renderNav(); return; }
     DW.render();
   });
   window.dw.on('finished', rec => DW.onFinished(rec));

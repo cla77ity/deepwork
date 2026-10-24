@@ -81,7 +81,7 @@
 
     window.dw.on('ambient', ({ kind, volume, playing }) => {
       if (!ctx) { ctx = new AudioContext(); master = ctx.createGain(); master.connect(ctx.destination); }
-      master.gain.setTargetAtTime(Math.max(0, Math.min(1, volume == null ? 0.4 : volume)), ctx.currentTime, 0.2);
+      master.gain.setTargetAtTime(Math.max(0, Math.min(1, volume == null ? 0.2 : volume)), ctx.currentTime, 0.2);
       if (!playing || kind === 'off') { fadeOut(current); current = null; return; }
       if (current && current.kind === kind) return;
       fadeOut(current);

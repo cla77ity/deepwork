@@ -54,6 +54,10 @@ const stateStore = new Store(path.join(userDir, 'state.json'), { session: null, 
 function migrate() {
   const def = D.defaultSettings();
   const d = data.data;
+  // v0.2.1: the default sound volume was halved; people still on the old default (0.4) get the new one.
+  // Checked before defaults are merged in, since the defaults already carry v: 2.
+  const amb = d.settings && d.settings.ambient;
+  if (amb && !amb.v) { if (amb.volume === 0.4) amb.volume = 0.2; amb.v = 2; }
   const cur = d.settings = { ...def, ...d.settings };
   for (const k of ['youtube', 'notify', 'widget', 'tabs', 'idle', 'ambient', 'rituals', 'telegram', 'phone', 'calendar', 'updates']) cur[k] = { ...def[k], ...cur[k] };
   for (const k of ['routines', 'routineLog', 'journal', 'usage', 'achievements']) if (!d[k]) d[k] = k === 'routines' ? [] : {};

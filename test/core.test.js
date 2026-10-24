@@ -121,11 +121,13 @@ test('apps: match by block list and whitelist, safe list wins', () => {
   const D = require('../core/defaults');
   const w = new AppWatcher({ dry: true, log() { } });
   const st = D.defaultSettings();
-  const list = [['Telegram', 1, 1, ''], ['Code', 2, 1, ''], ['explorer', 3, 1, ''], ['python', 4, 1, ''], ['Steam', 5, 0, ''], ['figma', 6, 1, '']];
+  // the default lists differ per OS; use names both have (a safe system process comes from the list itself)
+  const sysProc = D.APP_SAFE[0];
+  const list = [['Telegram', 1, 1, ''], ['Code', 2, 1, ''], [sysProc, 3, 1, ''], ['python', 4, 1, ''], ['Steam', 5, 0, ''], ['figma', 6, 1, '']];
   const block = w.match(list, appRules(st, D.levelConfig(st, 2))).map(v => v.name);
   assert.deepEqual(block.sort(), ['steam', 'telegram']);
   const monk = w.match(list, appRules(st, D.levelConfig(st, 4))).map(v => v.name);
-  assert.ok(!monk.includes('code') && !monk.includes('explorer') && !monk.includes('python') && !monk.includes('figma'));
+  assert.ok(!monk.includes('code') && !monk.includes(sysProc) && !monk.includes('python') && !monk.includes('figma'));
   assert.ok(monk.includes('telegram'));
   // apps of the session's preset are never closed
   assert.deepEqual(w.match(list, appRules(st, D.levelConfig(st, 2), ['telegram'])).map(v => v.name), ['steam']);

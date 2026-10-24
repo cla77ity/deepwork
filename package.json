@@ -1,7 +1,7 @@
 {
   "name": "deepwork",
   "productName": "Deepwork",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Full focus mode for Windows and macOS: timer, levels, notification mute, site/app blocking, Brave cleanup, planner, journal",
   "main": "main.js",
   "private": true,
