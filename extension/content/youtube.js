@@ -32,20 +32,47 @@ ${N} ytd-notification-topbar-button-renderer { display: none !important; }
   const FLAGS = ['shorts', 'home', 'sidebar', 'endscreen', 'comments', 'notif'];
   let cfg = null;
 
+  let focus = false;
   DWX.on(s => {
     const on = DWX.cleaning(s) && s.youtube;
     cfg = on ? (s.yt || {}) : null;
+    focus = DWX.enforced(s);
     for (const f of FLAGS) root.classList.toggle('dw-' + f, !!(cfg && cfg[f]));
     check();
   });
 
-  // /shorts/ID -> normal player (no endless swipe)
+  const blockPage = (mode, extra = '') => location.replace(chrome.runtime.getURL(`blocked.html?m=${mode}${extra}`) + '#' + location.href);
+
+  // Category of a video, read from its watch page (YouTube's own classification, always in English).
+  const categories = new Map();
+  async function categoryOf(id) {
+    if (categories.has(id)) return categories.get(id);
+    const p = fetch(`/watch?v=${id}`, { credentials: 'include' }).then(r => r.text())
+      .then(t => { const m = t.match(/"category":"([^"]+)"/); return m ? m[1].replace(/\\u0026/g, '&') : null; })
+      .catch(() => null);
+    categories.set(id, p);
+    return p;
+  }
+
+  let checking = null;
+  async function checkVideo() {
+    if (!focus || !cfg || !cfg.entertainment) return;
+    const id = location.pathname === '/watch' && new URLSearchParams(location.search).get('v');
+    if (!id || checking === id) return;
+    checking = id;
+    const cat = await categoryOf(id);
+    if (cat && (cfg.blockCats || []).includes(cat) && new URLSearchParams(location.search).get('v') === id) {
+      document.querySelectorAll('video').forEach(v => { try { v.pause(); } catch { } });
+      blockPage('yt', '&c=' + encodeURIComponent(cat));
+    }
+    checking = null;
+  }
+
   function check() {
     if (!cfg) return;
-    if (cfg.shorts) {
-      const m = location.pathname.match(/^\/shorts\/([\w-]{6,})/);
-      if (m) location.replace('/watch?v=' + m[1]);
-    }
+    // Shorts are blocked outright: no player, no feed
+    if (cfg.shorts && /^\/shorts(\/|$)/.test(location.pathname)) return blockPage('shorts');
+    checkVideo();
     if (cfg.autoplay) {
       const cancel = document.querySelector('.ytp-autonav-endscreen-upnext-cancel-button');
       if (cancel && cancel.offsetParent) cancel.click();

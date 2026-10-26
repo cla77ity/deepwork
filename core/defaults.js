@@ -115,7 +115,10 @@ function defaultSettings() {
     sound: true,
     alwaysClean: false,
     launchAtLogin: false,
-    youtube: { shorts: true, home: true, sidebar: true, endscreen: true, comments: true, autoplay: true, notif: true },
+    youtube: { shorts: true, home: true, sidebar: true, endscreen: true, comments: true, autoplay: true, notif: true,
+      // during focus: block videos of these YouTube categories (education, science, howto, news stay open)
+      entertainment: true,
+      blockCats: ['Entertainment', 'Gaming', 'Comedy', 'Music', 'People & Blogs', 'Sports', 'Film & Animation', 'Pets & Animals', 'Autos & Vehicles', 'Travel & Events'] },
     // per-weekday norm in minutes (Mon..Sun); null = use dailyGoalMin
     goalByDow: [null, null, null, null, null, null, null],
     notify: { breakStart: true, breakSoon: true, breakEnd: true, sessionEnd: true },

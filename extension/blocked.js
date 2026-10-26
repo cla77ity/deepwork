@@ -7,6 +7,14 @@ try { host = new URL(target).hostname.replace(/^www\./, ''); } catch { }
 const $ = id => document.getElementById(id);
 $('host').textContent = host || 'Этот сайт';
 if (mode === 'whitelist') $('why').textContent = 'не в белом списке';
+if (mode === 'shorts') { $('host').textContent = 'YouTube Shorts'; $('why').textContent = 'заблокированы — бесконечная лента коротких видео'; }
+if (mode === 'yt') {
+  const cat = params.get('c') || '';
+  const RU = { 'Entertainment': 'развлечения', 'Gaming': 'игры', 'Comedy': 'юмор', 'Music': 'музыка', 'People & Blogs': 'блоги', 'Sports': 'спорт',
+    'Film & Animation': 'фильмы и мультфильмы', 'Pets & Animals': 'животные', 'Autos & Vehicles': 'авто', 'Travel & Events': 'путешествия' };
+  $('host').textContent = 'Это видео';
+  $('why').textContent = `из категории «${RU[cat] || cat}» — недоступно во время фокуса. Обучающие видео открываются.`;
+}
 const matches = (h, d) => h === d || h.endsWith('.' + d);
 
 // daily limit page: shown in or out of a session, stays until midnight or until the limit is raised

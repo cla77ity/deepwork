@@ -352,11 +352,6 @@
         h('div.hint', { style: { marginTop: '6px' } }, { off: 'Перерыв только уведомлением.', soft: 'Экран можно закрыть или пропустить перерыв.', strict: 'Перерыв не пропустить, экран закрывается только через минуту — чтобы правда отдохнуть.' }[st.breakScreen])))));
 
     // ---- sounds
-    const a = { ...st.ambient };
-    add(section('Звуки', 'Фон для концентрации, генерируется самим Deepwork — без файлов и интернета. Бинауральный ритм работает только в наушниках.', card(
-      h('div.row.wrap', { style: { gap: '6px' } }, DW.AMBIENT.map(([k, l]) => h('button.chip' + (a.kind === k ? '.on' : ''), { onclick: () => { set({ ambient: { ...a, kind: k } }); if (k !== 'off') window.dw.call('ambient:preview', k, a.volume); } }, l))),
-      DW.volumeSlider(true),
-      toggle(a.breaks, 'Играть и в перерывах', v => set({ ambient: { ...a, breaks: v } })))));
 
     const w = { ...st.widget };
     add(section('Таймер на рабочем столе', 'Маленькое окно поверх всех окон. Перетаскивается мышкой, позиция запоминается.', h('div.card', h('div.set-grid',
@@ -382,9 +377,10 @@
     const yt = { ...st.youtube };
     const ytRow = (k, label) => toggle(yt[k], label, v => { yt[k] = v; set({ youtube: yt }); }, locked);
     add(section('Чистка YouTube', 'Работает на уровнях, где включена «Чистка YouTube». Поиск и подписки остаются.', h('div.card', h('div.set-grid',
-      ytRow('shorts', 'Убрать Shorts'), ytRow('home', 'Пустая главная'), ytRow('sidebar', 'Без похожих видео'),
+      ytRow('shorts', 'Блокировать Shorts'), ytRow('home', 'Пустая главная'), ytRow('sidebar', 'Без похожих видео'),
       ytRow('endscreen', 'Без заставок в конце'), ytRow('comments', 'Скрыть комментарии'), ytRow('autoplay', 'Без автозапуска следующего'),
-      ytRow('notif', 'Скрыть колокольчик')))));
+      ytRow('notif', 'Скрыть колокольчик'), ytRow('entertainment', 'В фокусе блокировать развлекательные видео')),
+      h('div.hint', { style: { marginTop: '10px' } }, 'Shorts блокируются полностью. Развлекательные — это категории YouTube: развлечения, игры, юмор, музыка, блоги, спорт, фильмы, животные, авто, путешествия. Обучение, наука, «как сделать» и новости открываются.'))));
 
     add(dataSection(), updatesSection());
 

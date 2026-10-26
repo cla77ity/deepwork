@@ -68,6 +68,15 @@
     pillTimer = setInterval(paint, 1000);
   }
 
+  // today's focus time ticks on its own while a session runs (sidebar + the focus screen)
+  setInterval(() => {
+    const s = DW.state && DW.state.session;
+    if (!s || s.phase !== 'focus' || s.status !== 'running') return;
+    renderNav();
+    const a = document.activeElement;
+    if (DW.view === 'focus' && !document.querySelector('.modal') && !(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName))) DW.render();
+  }, 30000);
+
   document.querySelectorAll('[data-win]').forEach(b => b.addEventListener('click', () => window.dw.call('win:' + b.dataset.win)));
 
   window.dw.on('session', p => {

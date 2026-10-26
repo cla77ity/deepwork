@@ -241,7 +241,10 @@ button.chip:hover { color: var(--text); border-color: var(--line3); }
 .day.today .dn b { background: var(--accent); color: var(--accent-ink); border-radius: 7px; padding: 0 6px; box-shadow: 0 0 12px var(--glow); }
 .day .dn b { font-weight: 600; }
 .day .fm { margin-left: auto; font-size: 10.5px; color: var(--muted); }
-.day .heat { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--accent); box-shadow: 0 0 8px var(--glow); border-radius: 0 2px 2px 0; }
+.day .fill { position: absolute; left: 0; right: 0; bottom: 0; z-index: 0; pointer-events: none; background: linear-gradient(180deg, rgba(232, 236, 255, .13), rgba(232, 236, 255, .05));
+  border-top: 1px solid rgba(232, 236, 255, .35); transition: height .6s var(--ease); }
+.day .fill.full { background: linear-gradient(180deg, rgba(232, 236, 255, .2), rgba(232, 236, 255, .08)); border-top-color: rgba(232, 236, 255, .7); box-shadow: inset 0 1px 12px -4px var(--glow); }
+.day > :not(.fill) { position: relative; z-index: 1; }
 .tchip { flex: none; font-size: 11.5px; padding: 2px 6px 2px 7px; border-radius: 6px; background: rgba(255, 255, 255, .045); border-left: 2px solid var(--c, var(--dim)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tchip.done { color: var(--dim); text-decoration: line-through; }
 .more { font-size: 11px; color: var(--dim); padding-left: 4px; }

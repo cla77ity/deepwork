@@ -103,8 +103,12 @@ async function sweepTabs(s) {
     const host = hostOf(t.url);
     const hit = blocked(host);
     if (tabMode === 'keep' ? (!matches(host, keep) && (!t.pinned || hit)) : tabMode === 'blocked' ? hit : false) close.push(t);
-    else if (hit) chrome.tabs.update(t.id, { url: t.url });
   }
+  // every other web tab is reloaded so filters and blocks apply right away (no manual F5)
+  const keepTabs = tabs.filter(t => t.url && /^https?:/.test(t.url) && !close.includes(t));
+  const swept = Date.now();
+  await chrome.storage.session.set({ swept: { at: swept, tabs: keepTabs.map(t => t.id) } });
+  for (const t of keepTabs) chrome.tabs.reload(t.id).catch(() => { });
   if (!close.length) return;
   // a window must not lose its last tab (that would close the window, maybe the whole browser)
   const left = new Map();
@@ -192,7 +196,14 @@ async function allowFor(domain, minutes) {
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
-  if (msg.type === 'attempt') send({ type: 'attempt', domain: String(msg.domain || '') });
+  if (msg.type === 'attempt') {
+    // pages that got blocked because of the reload at focus start are not "attempts" — nobody opened them
+    chrome.storage.session.get('swept').then(({ swept }) => {
+      const fromSweep = swept && Date.now() - swept.at < 20000 && sender.tab && swept.tabs.includes(sender.tab.id);
+      if (!fromSweep) send({ type: 'attempt', domain: String(msg.domain || '') });
+    });
+  }
+  if (msg.type === 'watching') send({ type: 'watching' });
   if (msg.type === 'allow') { allowFor(msg.domain, msg.minutes || 5).then(reply); return true; }
   if (msg.type === 'connect') connect();
 });

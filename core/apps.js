@@ -15,7 +15,11 @@ class AppWatcher extends EventEmitter {
   // rules: { mode: 'block'|'whitelist', block: Set, allow: Set, safe: Set }
   start(rules) {
     this.rules = rules;
-    if (!this.stopWatch) this.stopWatch = sys.watchProcesses(list => this.onList(list));
+    if (!this.stopWatch) {
+      // the first pass closes what was already open when focus started — that's cleanup, not a distraction
+      this.initial = true;
+      this.stopWatch = sys.watchProcesses(list => this.onList(list));
+    }
   }
 
   stop() {
@@ -45,6 +49,7 @@ class AppWatcher extends EventEmitter {
       names.add(v.name);
     }
     const now = Date.now();
+    if (this.initial) { this.initial = false; names.forEach(n => this.killedRecently.set(n, now)); return; }
     for (const n of names) {
       // one "attempt" per app per 20s, launchers spawn many processes
       if (now - (this.killedRecently.get(n) || 0) > 20000) this.emit('closed', n);

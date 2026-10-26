@@ -192,7 +192,7 @@
       if (s.canPause) list.push([s.status === 'paused' ? 'Продолжить' : 'Пауза', 'Сессия', () => window.dw.call(s.status === 'paused' ? 'session:resume' : 'session:pause')]);
       list.push(['Дзен-режим', 'Полный экран', () => DW.zen(true)]);
     }
-    ['Рабочие наборы', 'Расписание', 'Лимиты сайтов', 'Звуки', 'Telegram', 'Телефон', 'Данные', 'Обновления'].forEach(sec =>
+    ['Рабочие наборы', 'Расписание', 'Лимиты сайтов', 'Telegram', 'Телефон', 'Данные', 'Обновления'].forEach(sec =>
       list.push([`Настройки: ${sec}`, 'Перейти', () => { DW.settingsFocus = 'sec-' + sec; DW.go('settings'); }]));
     return list;
   }

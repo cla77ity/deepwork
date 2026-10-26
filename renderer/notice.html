@@ -15,13 +15,17 @@
     b { display: block; font-weight: 600; font-size: 14.5px; letter-spacing: -.01em; }
     span { color: #8d9099; font-size: 12.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     /* time-left line along the bottom */
+    .acts { margin-top: 8px; display: flex; gap: 6px; }
+    .acts button { font: 600 12.5px "Inter", sans-serif; border: 0; border-radius: 9px; padding: 6px 12px; background: #e8ecff; color: #07080c; cursor: pointer; }
+    .acts button:hover { background: #fff; }
+    .acts:empty { display: none; }
     .bar { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--c); box-shadow: 0 0 8px var(--g); width: 100%; transform-origin: left; }
     .n.show .bar { animation: drain var(--ms) linear forwards; }
     @keyframes drain { to { transform: scaleX(0); } }
   </style>
 </head>
 <body>
-  <div class="n" id="n"><div class="ring"></div><div><b id="t"></b><span id="b"></span></div><i class="bar"></i></div>
+  <div class="n" id="n"><div class="ring"></div><div><b id="t"></b><span id="b"></span><div class="acts" id="a"></div></div><i class="bar"></i></div>
   <script>
     // one accent for everything that is "you"; muted status tones only for warnings
     const KIND = {
@@ -40,7 +44,10 @@
         o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + 1);
       });
     }
-    window.dw.on('notice', ({ title, body, kind, sound, ms }) => {
+    window.dw.on('notice', ({ title, body, kind, sound, ms, actions }) => {
+      const box = document.getElementById('a');
+      box.innerHTML = '';
+      (actions || []).forEach(a => { const b = document.createElement('button'); b.textContent = a.label; b.onclick = () => window.dw.call('notice:action', a.id); box.append(b); });
       const n = document.getElementById('n');
       const [c, g] = KIND[kind] || KIND.info;
       n.style.setProperty('--c', c);

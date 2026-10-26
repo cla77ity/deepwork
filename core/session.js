@@ -144,10 +144,11 @@ class Session extends EventEmitter {
   }
 
   // away-from-keyboard time inside a focus phase
+  // negative ms gives time back ("засчитать" on the idle notice)
   addIdle(ms) {
     const s = this.s;
-    if (!s || ms <= 0) return;
-    s.idleMs += ms;
+    if (!s || !ms) return;
+    s.idleMs = Math.max(0, s.idleMs + ms);
     this.changed('idle');
   }
 

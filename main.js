@@ -78,7 +78,7 @@ let extStatus = { connected: false, incognito: false };
 const bridge = new Bridge(extState, Number(arg('port')) || undefined);
 const guard = new Guard({ stateFile: stateStore.file, exe: process.execPath, args: app.isPackaged ? [] : [__dirname], log });
 
-let win = null, tray = null, notice = null, widget = null, capture = null, soundWin = null, breakWin = null, quitting = false;
+let win = null, tray = null, notice = null, widget = null, capture = null, breakWin = null, quitting = false;
 const status = { hotkeys: [], telegram: null, phone: null, update: null, calendar: null };
 
 // ---- helpers ---------------------------------------------------------------
@@ -229,7 +229,8 @@ function showWin() {
 function navigate(view) { showWin(); send('navigate', { view }); }
 
 // ---- notice: small always-on-top card, since Windows toasts are muted during focus
-function showNotice(title, body, kind = 'info', ms = 5200) {
+// actions: [{ id, label }] — buttons on the card; a click comes back as ipc 'notice:action'
+function showNotice(title, body, kind = 'info', ms = 5200, actions = null) {
   if (SHOT || MAKE_SHORTCUT) return;
   if (!notice || notice.isDestroyed()) {
     notice = new BrowserWindow({
@@ -239,13 +240,14 @@ function showNotice(title, body, kind = 'info', ms = 5200) {
     });
     notice.setAlwaysOnTop(true, 'screen-saver');
     notice.loadFile(path.join(__dirname, 'renderer', 'notice.html'));
-    notice.webContents.once('did-finish-load', () => showNotice(title, body, kind, ms));
+    notice.webContents.once('did-finish-load', () => showNotice(title, body, kind, ms, actions));
     return;
   }
   const wa = screen.getPrimaryDisplay().workArea;
   // where each OS shows its own notifications: top right on macOS, bottom right on Windows
-  notice.setPosition(wa.x + wa.width - 396, MAC ? wa.y + 10 : wa.y + wa.height - 120);
-  notice.webContents.send('notice', { title, body, kind, sound: S().sound, ms });
+  const hgt = actions && actions.length ? 140 : 104;
+  notice.setBounds({ x: wa.x + wa.width - 396, y: MAC ? wa.y + 10 : wa.y + wa.height - hgt - 16, width: 380, height: hgt });
+  notice.webContents.send('notice', { title, body, kind, sound: S().sound, ms, actions });
   notice.showInactive();
   clearTimeout(showNotice.t);
   showNotice.t = setTimeout(() => notice && !notice.isDestroyed() && notice.hide(), ms + 400);
@@ -323,22 +325,6 @@ function park(text, source = 'app') {
   return task;
 }
 
-// ---- ambient sound: a hidden window with Web Audio generators --------------------------
-function syncAmbient(preview) {
-  const a = S().ambient;
-  const s = session.state;
-  const playing = !!preview || (a.kind !== 'off' && !!s && s.status === 'running' && (s.phase === 'focus' || a.breaks));
-  if (!playing && !soundWin) return;
-  if (!soundWin || soundWin.isDestroyed()) {
-    soundWin = new BrowserWindow({ show: false, webPreferences: { preload: path.join(__dirname, 'preload.js'), backgroundThrottling: false } });
-    soundWin.loadFile(path.join(__dirname, 'renderer', 'sound.html'));
-    soundWin.webContents.once('did-finish-load', () => syncAmbient(preview));
-    soundWin.on('closed', () => { soundWin = null; });
-    return;
-  }
-  soundWin.webContents.send('ambient', preview ? { ...preview, playing: true, preview: true } : { kind: a.kind, volume: a.volume, playing });
-}
-
 // ---- full-screen break -----------------------------------------------------------------
 function syncBreakScreen() {
   const s = session.state;
@@ -411,7 +397,6 @@ session.on('change', (s, why) => {
   syncWidget();
   syncGuard(s);
   syncForeground(s);
-  syncAmbient();
   syncBreakScreen();
   pushSession();
 });
@@ -448,6 +433,8 @@ apps.on('closed', name => {
 });
 
 bridge.on('attempt', domain => session.attempt('sites', domain));
+// the extension reports a playing, visible video every ~15 s
+bridge.on('watching', () => { watchingUntil = Date.now() + 40000; });
 let extEverConnected = false, extLostAt = null;
 bridge.on('status', st => {
   extStatus = st;
@@ -472,25 +459,38 @@ bridge.on('usage', u => {
 
 // ---- idle: time away from the computer doesn't count as focus ---------------------------
 let idleSince = null;
+let lastIdle = 0;          // the last away stretch, so "засчитать" can give it back
+let watchingUntil = 0;     // a video is playing in the browser: no input, but not away
 function flushIdle(until = Date.now()) {
-  if (!idleSince) return;
-  session.addIdle(Math.max(0, until - idleSince));
+  if (!idleSince) return 0;
+  const ms = Math.max(0, until - idleSince);
+  session.addIdle(ms);
   idleSince = null;
+  return ms;
 }
 setInterval(() => {
   const s = session.state;
   const cfg = S().idle;
   if (!s || s.phase !== 'focus' || s.status !== 'running' || !cfg.enabled || SHOT) { if (!s) idleSince = null; return; }
   const idleSec = powerMonitor.getSystemIdleTime();
+  // watching a video counts as being here: drop a pending idle stretch without subtracting it
+  if (Date.now() < watchingUntil) { idleSince = null; return; }
   if (!idleSince && idleSec >= cfg.minutes * 60) {
     idleSince = Date.now() - idleSec * 1000;
-    showNotice('Ты отошёл?', 'Пока тебя нет, время фокуса не идёт', 'soon', 7000);
+    showNotice('Ты отошёл?', 'Пока тебя нет, время фокуса не идёт', 'soon', 60000, [{ id: 'idle-keep', label: 'Я здесь — засчитать' }]);
   } else if (idleSince && idleSec < 5) {
-    const away = Math.round((Date.now() - idleSince) / 60000);
-    flushIdle();
-    showNotice('С возвращением', `${away} мин простоя не засчитаны в фокус`, 'focus');
+    lastIdle = flushIdle();
+    const away = Math.max(1, Math.round(lastIdle / 60000));
+    showNotice('С возвращением', `${away} мин простоя не засчитаны в фокус`, 'focus', 15000, [{ id: 'idle-restore', label: `Засчитать ${away} мин` }]);
   }
 }, 5000);
+
+ipcMain.handle('notice:action', (_, id) => {
+  if (id === 'idle-keep') { idleSince = null; showNotice('Засчитано', 'Время идёт в фокус', 'focus', 3000); }
+  if (id === 'idle-restore' && lastIdle) { session.addIdle(-lastIdle); lastIdle = 0; showNotice('Засчитано', 'Эти минуты вернулись в фокус', 'focus', 3000); }
+  if (notice && !notice.isDestroyed() && id !== 'idle-keep' && id !== 'idle-restore') notice.hide();
+  return true;
+});
 
 // ---- guard: Brave without the extension during a guarded session gets closed ----------------
 setInterval(async () => {
@@ -776,7 +776,7 @@ ipcMain.handle('settings:set', (_, patch) => {
   if ('launchAtLogin' in patch) setLogin(!!patch.launchAtLogin);
   data.saveNow();
   if ('widget' in patch) syncWidget();
-  if ('ambient' in patch || 'breakScreen' in patch) { syncAmbient(); syncBreakScreen(); }
+  if ('breakScreen' in patch) syncBreakScreen();
   if ('hotkeys' in patch) syncHotkeys();
   if ('telegram' in patch) syncTelegram();
   if ('phone' in patch) syncPhone();
@@ -844,7 +844,6 @@ ipcMain.handle('achievements:unlock', (_, list) => {
 ipcMain.handle('park:add', (_, text) => !!park(text));
 ipcMain.handle('capture:show', () => showCapture());
 ipcMain.handle('capture:hide', () => capture && !capture.isDestroyed() && capture.hide());
-ipcMain.handle('ambient:preview', (_, kind, volume) => { syncAmbient({ kind, volume }); setTimeout(() => syncAmbient(), 6000); return true; });
 ipcMain.handle('break:close', () => { if (breakWin && !breakWin.isDestroyed()) breakWin.close(); return true; });
 ipcMain.handle('win:zen', (_, on) => { if (win) win.setFullScreen(!!on); return true; });
 

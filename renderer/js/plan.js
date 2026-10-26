@@ -59,7 +59,8 @@
         evs.slice(0, 1).map(e => h('div.echip', { title: (e.allDay ? 'весь день' : DW.hhmm(e.start) + '–' + DW.hhmm(e.end)) + ' · ' + e.title }, e.title)),
         list.slice(0, slots).map(t => h('div.tchip' + (t.done ? '.done' : ''), { style: { '--c': goalColor(t) }, draggable: true, ondragstart: e => e.dataTransfer.setData('text/task', t.id), title: (t.time ? t.time + ' · ' : '') + t.title }, t.title)),
 
-        fm >= 1 ? h('div.heat', { style: { opacity: String(Math.min(1, 0.25 + fm / (DW.goalFor(d) || fm) * 0.75)), width: Math.min(100, fm / (DW.goalFor(d) || fm) * 100) + '%' } }) : null);
+        // the cell fills up from the bottom with the day's share of the norm; a full cell = norm reached
+        fm >= 1 ? h('div.fill' + (DW.metGoal(by, d) ? '.full' : ''), { title: `${DW.dur(fm)} фокуса${DW.goalFor(d) ? ' из ' + DW.dur(DW.goalFor(d)) : ''}`, style: { height: Math.min(100, fm / (DW.goalFor(d) || fm) * 100) + '%' } }) : null);
       body.append(cell);
     }
     return h('div.card.cal', head, h('div.cal-dow', DW.DOW.map(d => h('div', d))), body);
