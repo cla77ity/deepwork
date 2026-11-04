@@ -68,6 +68,7 @@ function migrate() {
     for (const c of L.appCats || []) c.names = c.names.filter(n => n.toLowerCase() !== 'discord');
     if (!(L.appAllow || []).some(n => n.toLowerCase() === 'discord')) L.appAllow = [...(L.appAllow || []), 'discord'];
     L.v = 1;
+    data.save();
   }
   if (!cur.onboarded && (d.sessions.length || d.tasks.length)) cur.onboarded = true;
 }
