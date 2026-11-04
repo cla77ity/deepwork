@@ -62,6 +62,13 @@ function migrate() {
   for (const k of ['youtube', 'notify', 'widget', 'tabs', 'idle', 'ambient', 'rituals', 'telegram', 'phone', 'calendar', 'updates']) cur[k] = { ...def[k], ...cur[k] };
   for (const k of ['routines', 'routineLog', 'journal', 'usage', 'achievements']) if (!d[k]) d[k] = k === 'routines' ? [] : {};
   // people upgrading from a version without onboarding don't need it
+  // v0.3.1: Discord stays open during focus — moved from «Мессенджеры» to the allow list once
+  const L = cur.lists;
+  if (L && (L.v || 0) < 1) {
+    for (const c of L.appCats || []) c.names = c.names.filter(n => n.toLowerCase() !== 'discord');
+    if (!(L.appAllow || []).some(n => n.toLowerCase() === 'discord')) L.appAllow = [...(L.appAllow || []), 'discord'];
+    L.v = 1;
+  }
   if (!cur.onboarded && (d.sessions.length || d.tasks.length)) cur.onboarded = true;
 }
 migrate();

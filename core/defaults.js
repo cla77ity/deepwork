@@ -73,12 +73,12 @@ const SITE_ALLOW = ['github.com', 'stackoverflow.com', 'developer.mozilla.org', 
 // App names are lowercase process names: Windows — the .exe name, macOS — the name shown in the Dock.
 const APP_CATS = MAC ? [
   { id: 'games', name: 'Игры и лаунчеры', on: true, names: ['steam', 'steam_osx', 'epic games launcher', 'riot client', 'league of legends', 'battle.net'] },
-  { id: 'messengers', name: 'Мессенджеры', on: true, names: ['telegram', 'discord', 'whatsapp', 'viber', 'slack', 'messages'] },
+  { id: 'messengers', name: 'Мессенджеры', on: true, names: ['telegram', 'whatsapp', 'viber', 'slack', 'messages'] },
   { id: 'media', name: 'Музыка и видео', on: false, names: ['spotify', 'music', 'tv', 'vlc'] },
   { id: 'custom', name: 'Мои программы', on: true, names: [] },
 ] : [
   { id: 'games', name: 'Игры и лаунчеры', on: true, names: ['steam', 'steamwebhelper', 'epicgameslauncher', 'riotclientservices', 'leagueclient', 'battle.net', 'origin', 'eadesktop', 'ubisoftconnect'] },
-  { id: 'messengers', name: 'Мессенджеры', on: true, names: ['telegram', 'discord', 'whatsapp', 'viber', 'slack'] },
+  { id: 'messengers', name: 'Мессенджеры', on: true, names: ['telegram', 'whatsapp', 'viber', 'slack'] },
   { id: 'media', name: 'Музыка и видео', on: false, names: ['spotify', 'vlc', 'yandexmusic'] },
   { id: 'custom', name: 'Мои программы', on: true, names: [] },
 ];
@@ -89,8 +89,8 @@ const OTHER_BROWSERS = MAC
   : ['chrome', 'msedge', 'firefox', 'opera', 'opera_gx', 'browser', 'vivaldi', 'yandex', 'comet', 'arc', 'chromium', 'thorium', 'waterfox', 'librewolf'];
 
 const APP_ALLOW = MAC
-  ? ['code', 'cursor', 'brave browser', 'figma', 'terminal', 'iterm2', 'warp', 'notes', 'obsidian', 'claude', 'notion', 'xcode', 'preview']
-  : ['code', 'cursor', 'idea64', 'pycharm64', 'brave', 'figma', 'notepad', 'notepad++', 'windowsterminal', 'powershell', 'pwsh', 'cmd', 'claude', 'obsidian', 'notion'];
+  ? ['code', 'cursor', 'discord', 'brave browser', 'figma', 'terminal', 'iterm2', 'warp', 'notes', 'obsidian', 'claude', 'notion', 'xcode', 'preview']
+  : ['code', 'cursor', 'discord', 'idea64', 'pycharm64', 'brave', 'figma', 'notepad', 'notepad++', 'windowsterminal', 'powershell', 'pwsh', 'cmd', 'claude', 'obsidian', 'notion'];
 
 // Never killed, whatever the lists say.
 const APP_SAFE = [
